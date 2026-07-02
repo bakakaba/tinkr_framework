@@ -42,10 +42,16 @@ type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 pub struct Server {
     router: axum::Router,
     has_http: bool,
+    /// gRPC routes accumulated *without* tonic's `unimplemented` fallback, so
+    /// unmatched paths fall through to axum's default 404 and so a
+    /// user-supplied [`grpc_routes`](Self::grpc_routes) (which carries the one
+    /// allowed custom fallback) can still be merged in.
     #[cfg(feature = "grpc")]
-    grpc: tonic::service::RoutesBuilder,
+    grpc: tonic::service::Routes,
     #[cfg(feature = "grpc")]
     has_grpc: bool,
+    #[cfg(feature = "grpc")]
+    has_grpc_routes: bool,
     shutdown_hook: Option<ShutdownHook>,
 }
 
@@ -72,10 +78,15 @@ impl Server {
         Self {
             router: axum::Router::new(),
             has_http: false,
+            // `Routes::from(axum::Router)` does NOT attach tonic's
+            // `unimplemented` fallback (unlike `Routes::default()`), keeping
+            // this router mergeable and 404-friendly.
             #[cfg(feature = "grpc")]
-            grpc: tonic::service::RoutesBuilder::default(),
+            grpc: tonic::service::Routes::from(axum::Router::new()),
             #[cfg(feature = "grpc")]
             has_grpc: false,
+            #[cfg(feature = "grpc")]
+            has_grpc_routes: false,
             shutdown_hook: None,
         }
     }
@@ -101,10 +112,10 @@ impl Server {
     /// `svc` is the generated `XxxServer<T>` type produced by `tonic-build`,
     /// `tonic-prost-build`, or `buf`. All three toolchains emit the same
     /// concrete server type, so registration is identical regardless of how the
-    /// code was generated.
+    /// code was generated. Call repeatedly to register multiple services.
     #[cfg(feature = "grpc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
-    pub fn add_grpc_service<S>(mut self, svc: S) -> Self
+    pub fn grpc_service<S>(mut self, svc: S) -> Self
     where
         S: tower::Service<
                 http::Request<tonic::body::Body>,
@@ -117,7 +128,42 @@ impl Server {
         S::Response: axum::response::IntoResponse,
         S::Future: Send + 'static,
     {
-        self.grpc.add_service(svc);
+        self.grpc = self.grpc.add_service(svc);
+        self.has_grpc = true;
+        self
+    }
+
+    /// Merge a pre-built [`tonic::service::Routes`] into the gRPC routes,
+    /// mirroring [`router`](Self::router) for the HTTP side.
+    ///
+    /// Build the routes anywhere (e.g. with `tonic::service::Routes::builder()`)
+    /// and pass them in whole.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called more than once. A tonic [`Routes`] always carries its
+    /// own `unimplemented` fallback and axum cannot merge two routers that
+    /// both have one. Register additional services with
+    /// [`grpc_service`](Self::grpc_service) instead.
+    ///
+    /// Note: the fallback that comes with `routes` applies to the whole
+    /// server, so unmatched requests will receive a gRPC `Unimplemented`
+    /// response instead of an HTTP 404.
+    ///
+    /// [`Routes`]: tonic::service::Routes
+    #[cfg(feature = "grpc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+    pub fn grpc_routes(mut self, routes: tonic::service::Routes) -> Self {
+        assert!(
+            !self.has_grpc_routes,
+            "`grpc_routes` may only be called once: tonic `Routes` carry a \
+             fallback and axum cannot merge two routers that both have one. \
+             Register additional services with `grpc_service`."
+        );
+        self.has_grpc_routes = true;
+        self.grpc = tonic::service::Routes::from(
+            self.grpc.into_axum_router().merge(routes.into_axum_router()),
+        );
         self.has_grpc = true;
         self
     }
@@ -181,7 +227,7 @@ impl Server {
 
         #[cfg(feature = "grpc")]
         if self.has_grpc {
-            let grpc = self.grpc.routes().into_axum_router();
+            let grpc = self.grpc.into_axum_router();
             app = app.merge(grpc);
         }
 

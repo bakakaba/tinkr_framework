@@ -27,7 +27,7 @@ async fn spawn_server() -> SocketAddr {
     tokio::spawn(async move {
         Server::new()
             .route("/health", get(|| async { "ok" }))
-            .add_grpc_service(GreeterServer::new(MyGreeter))
+            .grpc_service(GreeterServer::new(MyGreeter))
             .serve(listener)
             .await
             .expect("server error");
@@ -91,6 +91,56 @@ async fn http_and_grpc_share_one_port() {
         .expect("gRPC call failed")
         .into_inner();
     assert_eq!(reply.message, "Hello tinkr!");
+}
+
+/// Unmatched HTTP paths get a plain 404, not tonic's `unimplemented` fallback.
+#[tokio::test]
+async fn unmatched_path_is_http_404() {
+    let addr = spawn_server().await;
+
+    let (status, _) = http_get(addr, "/nonexistent").await;
+    assert_eq!(status, 404, "unmatched paths should fall through to a 404");
+}
+
+/// A pre-built `tonic::service::Routes` merged via `grpc_routes` serves gRPC
+/// alongside HTTP routes on the same port.
+#[tokio::test]
+async fn grpc_routes_responds() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("failed to bind listener");
+    let addr = listener.local_addr().expect("failed to read local addr");
+
+    let routes = tonic::service::Routes::builder()
+        .add_service(GreeterServer::new(MyGreeter))
+        .to_owned()
+        .routes();
+
+    tokio::spawn(async move {
+        Server::new()
+            .route("/health", get(|| async { "ok" }))
+            .grpc_routes(routes)
+            .serve(listener)
+            .await
+            .expect("server error");
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let (status, body) = http_get(addr, "/health").await;
+    assert_eq!(status, 200);
+    assert_eq!(body, "ok");
+
+    let mut client = GreeterClient::connect(format!("http://{addr}"))
+        .await
+        .expect("failed to connect gRPC client");
+    let reply = client
+        .say_hello(HelloRequest {
+            name: "routes".to_string(),
+        })
+        .await
+        .expect("gRPC call failed")
+        .into_inner();
+    assert_eq!(reply.message, "Hello routes!");
 }
 
 /// Minimal HTTP/1.1 GET helper returning `(status, body)`.

@@ -30,7 +30,7 @@ use axum::routing::get;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::new()
         .route("/health", get(|| async { "ok" }))          // HTTP
-        .add_grpc_service(my_grpc_server)                    // gRPC
+        .grpc_service(my_grpc_server)                    // gRPC
         .serve(8080)
         .await?;
     Ok(())
@@ -53,7 +53,7 @@ runs after graceful shutdown completes, right before `serve()` returns.
 
 ### gRPC services
 
-`add_grpc_service` accepts the generated `XxxServer<T>` type. You build the
+`grpc_service` accepts the generated `XxxServer<T>` type. You build the
 protobuf descriptors yourself and pass the resulting server in. Both toolchains
 are supported:
 
@@ -61,6 +61,11 @@ are supported:
 - **buf** — generate with `buf generate`.
 
 Both emit the same concrete `XxxServer<T>`, so registration is identical.
+
+A pre-built `tonic::service::Routes` can be merged in whole with
+`grpc_routes(routes)` — the gRPC counterpart of `router(...)`. It may only be
+called once (tonic `Routes` carry a fallback and axum cannot merge two routers
+that both have one); register additional services with `grpc_service`.
 
 ## Demo
 

@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Server::new()
         .route("/health", get(|| async { "ok" }))
-        .add_grpc_service(GreeterServer::new(MyGreeter))
+        .grpc_service(GreeterServer::new(MyGreeter))
         .serve(8080)
         .await?;
 
