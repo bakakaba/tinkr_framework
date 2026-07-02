@@ -1,0 +1,8 @@
+[package]
+name = "tinkr_framework"
+edition.workspace = true
+version = "0.0.0"
+
+[features]
+
+[dependencies]
