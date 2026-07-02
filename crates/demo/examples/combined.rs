@@ -13,17 +13,17 @@
 //! grpcurl -plaintext -d '{"name":"world"}' \
 //!     127.0.0.1:8080 hello.Greeter/SayHello    # -> {"message":"Hello world!"}
 //! ```
-
-use std::net::SocketAddr;
+//!
+//! Press ctrl-c to shut down gracefully; the clean-up hook runs before exit.
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    println!("listening on http://127.0.0.1:8080 (HTTP + gRPC)");
 
-    let server = demo::builder(addr).build().await?;
-
-    println!("listening on http://{} (HTTP + gRPC)", server.local_addr()?);
-    server.serve().await?;
+    demo::server()
+        .on_shutdown(async { println!("shutting down, running clean-up") })
+        .serve("127.0.0.1:8080")
+        .await?;
 
     Ok(())
 }

@@ -1,7 +1,9 @@
 //! `tinkr_framework` — a reusable library for standing up API servers.
 //!
-//! It provides a builder for running HTTP (via [`axum`]) and gRPC (via
-//! [`tonic`]) on a single, multiplexed port.
+//! It provides a [`Server`] for running HTTP (via [`axum`]) and gRPC (via
+//! [`tonic`]) on a single, multiplexed port. [`Server::serve`] runs until
+//! `ctrl-c` / `SIGTERM`, shuts down gracefully, and runs an optional clean-up
+//! hook.
 //!
 //! # Features
 //!
@@ -12,18 +14,16 @@
 //! # Example
 //!
 //! ```no_run
-//! use tinkr_framework::ServerBuilder;
+//! use tinkr_framework::Server;
 //!
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 //! use axum::routing::get;
 //!
-//! let server = ServerBuilder::new()
-//!     .bind(([0, 0, 0, 0], 8080))
+//! Server::new()
 //!     .route("/health", get(|| async { "ok" }))
-//!     .build()
+//!     .on_shutdown(async { println!("cleaning up") })
+//!     .serve(8080)
 //!     .await?;
-//!
-//! server.serve().await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -33,4 +33,4 @@ pub mod error;
 pub mod server;
 
 pub use error::{Error, Result};
-pub use server::{Server, ServerBuilder};
+pub use server::{ServeTarget, Server};

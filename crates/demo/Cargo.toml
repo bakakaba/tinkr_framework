@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 tinkr_framework = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
 prost = { workspace = true }

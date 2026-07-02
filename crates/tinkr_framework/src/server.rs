@@ -1,75 +1,83 @@
 //! HTTP + gRPC server built on a single, multiplexed port.
 //!
-//! [`ServerBuilder`] assembles an [`axum::Router`] (HTTP/REST) and any number of
+//! [`Server`] assembles an [`axum::Router`] (HTTP/REST) and any number of
 //! tonic gRPC services onto a single listener. Requests are dispatched by
 //! content-type: `application/grpc*` is routed to the tonic services and
 //! everything else is routed to the axum router.
+//!
+//! [`Server::serve`] runs until the process receives `ctrl-c` (or `SIGTERM` on
+//! unix), then shuts down gracefully and runs the optional
+//! [`Server::on_shutdown`] clean-up hook.
 
 use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::pin::Pin;
 
 use tokio::net::TcpListener;
 
 use crate::error::{Error, Result};
 
-/// The default address the server binds to when none is provided.
-const DEFAULT_ADDR: ([u8; 4], u16) = ([0, 0, 0, 0], 8080);
+/// The port used when a [`ServeTarget`] specifies only an address.
+const DEFAULT_PORT: u16 = 8080;
 
-/// Builder for a multiplexed HTTP + gRPC [`Server`].
+type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+
+/// A multiplexed HTTP + gRPC server.
 ///
 /// # Example
 ///
 /// ```no_run
-/// use tinkr_framework::ServerBuilder;
+/// use tinkr_framework::Server;
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// use axum::routing::get;
 ///
-/// let server = ServerBuilder::new()
-///     .bind(([127, 0, 0, 1], 8080))
+/// Server::new()
 ///     .route("/health", get(|| async { "ok" }))
-///     .build()
+///     .serve(8080)
 ///     .await?;
-///
-/// server.serve().await?;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
-pub struct ServerBuilder {
-    addr: SocketAddr,
+pub struct Server {
     router: axum::Router,
     has_http: bool,
     #[cfg(feature = "grpc")]
     grpc: tonic::service::RoutesBuilder,
     #[cfg(feature = "grpc")]
     has_grpc: bool,
+    shutdown_hook: Option<ShutdownHook>,
 }
 
-impl Default for ServerBuilder {
+impl std::fmt::Debug for Server {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("Server");
+        s.field("has_http", &self.has_http);
+        #[cfg(feature = "grpc")]
+        s.field("has_grpc", &self.has_grpc);
+        s.field("has_shutdown_hook", &self.shutdown_hook.is_some());
+        s.finish_non_exhaustive()
+    }
+}
+
+impl Default for Server {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ServerBuilder {
-    /// Create a new builder bound to the default address (`0.0.0.0:8080`).
+impl Server {
+    /// Create a new, empty server.
     pub fn new() -> Self {
         Self {
-            addr: SocketAddr::from(DEFAULT_ADDR),
             router: axum::Router::new(),
             has_http: false,
             #[cfg(feature = "grpc")]
             grpc: tonic::service::RoutesBuilder::default(),
             #[cfg(feature = "grpc")]
             has_grpc: false,
+            shutdown_hook: None,
         }
-    }
-
-    /// Set the socket address the server will bind to.
-    pub fn bind(mut self, addr: impl Into<SocketAddr>) -> Self {
-        self.addr = addr.into();
-        self
     }
 
     /// Merge an [`axum::Router`] into the HTTP routes.
@@ -114,14 +122,45 @@ impl ServerBuilder {
         self
     }
 
-    /// Build the [`Server`], binding the listener.
+    /// Register a clean-up hook that runs after graceful shutdown completes,
+    /// just before [`serve`](Self::serve) returns.
     ///
-    /// Returns [`Error::NoRoutes`] if neither HTTP routes nor gRPC services were
-    /// registered.
-    pub async fn build(self) -> Result<Server> {
-        let listener = TcpListener::bind(self.addr).await?;
+    /// Use this to close database pools, flush buffers, etc.
+    pub fn on_shutdown(mut self, hook: impl Future<Output = ()> + Send + 'static) -> Self {
+        self.shutdown_hook = Some(Box::pin(hook));
+        self
+    }
+
+    /// Bind to `target` and serve until the process receives `ctrl-c` (or
+    /// `SIGTERM` on unix), then shut down gracefully and run the
+    /// [`on_shutdown`](Self::on_shutdown) hook, if any.
+    ///
+    /// `target` may be:
+    ///
+    /// - a port: `serve(8080)` binds `0.0.0.0:8080`
+    /// - an address: `serve([127, 0, 0, 1])` or `serve(IpAddr::...)` binds port
+    ///   `8080`
+    /// - a string: `serve("127.0.0.1")` or `serve("127.0.0.1:3000")`
+    /// - a [`SocketAddr`]
+    /// - a pre-bound [`tokio::net::TcpListener`] (useful in tests: bind port
+    ///   `0` yourself and read `local_addr()` before serving)
+    ///
+    /// Returns [`Error::NoRoutes`] if neither HTTP routes nor gRPC services
+    /// were registered.
+    pub async fn serve(mut self, target: impl ServeTarget) -> Result<()> {
+        let hook = self.shutdown_hook.take();
         let app = self.into_app()?;
-        Ok(Server { listener, app })
+        let listener = target.into_listener().await?;
+
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown_signal())
+            .await?;
+
+        if let Some(hook) = hook {
+            hook.await;
+        }
+
+        Ok(())
     }
 
     /// Assemble the merged axum router from the configured HTTP + gRPC routes.
@@ -150,34 +189,95 @@ impl ServerBuilder {
     }
 }
 
-/// A bound, ready-to-serve HTTP + gRPC server.
-#[derive(Debug)]
-pub struct Server {
-    listener: TcpListener,
-    app: axum::Router,
+/// Resolves when the process receives `ctrl-c`, or `SIGTERM` on unix.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install ctrl-c handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = terminate => {}
+    }
 }
 
-impl Server {
-    /// The local address the server is bound to.
-    ///
-    /// Useful when binding to port `0` in tests to discover the OS-assigned
-    /// port.
-    pub fn local_addr(&self) -> std::io::Result<SocketAddr> {
-        self.listener.local_addr()
-    }
+mod sealed {
+    pub trait Sealed {}
 
-    /// Serve until the process is terminated.
-    pub async fn serve(self) -> Result<()> {
-        axum::serve(self.listener, self.app).await?;
-        Ok(())
-    }
+    impl Sealed for u16 {}
+    impl Sealed for std::net::IpAddr {}
+    impl Sealed for [u8; 4] {}
+    impl Sealed for &str {}
+    impl Sealed for std::net::SocketAddr {}
+    impl Sealed for tokio::net::TcpListener {}
+}
 
-    /// Serve until the provided `shutdown` future resolves, then shut down
-    /// gracefully.
-    pub async fn serve_with_shutdown(self, shutdown: impl Future<Output = ()> + Send + 'static) -> Result<()> {
-        axum::serve(self.listener, self.app)
-            .with_graceful_shutdown(shutdown)
-            .await?;
-        Ok(())
+/// A bind target accepted by [`Server::serve`].
+///
+/// Implemented for ports (`u16`), addresses ([`IpAddr`], `[u8; 4]`, `&str`),
+/// [`SocketAddr`], and pre-bound [`tokio::net::TcpListener`]s. This trait is
+/// sealed and cannot be implemented outside this crate.
+#[allow(async_fn_in_trait)]
+pub trait ServeTarget: sealed::Sealed {
+    /// Resolve this target into a bound listener.
+    #[doc(hidden)]
+    async fn into_listener(self) -> Result<TcpListener>;
+}
+
+impl ServeTarget for u16 {
+    async fn into_listener(self) -> Result<TcpListener> {
+        let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, self));
+        Ok(TcpListener::bind(addr).await?)
+    }
+}
+
+impl ServeTarget for IpAddr {
+    async fn into_listener(self) -> Result<TcpListener> {
+        Ok(TcpListener::bind(SocketAddr::from((self, DEFAULT_PORT))).await?)
+    }
+}
+
+impl ServeTarget for [u8; 4] {
+    async fn into_listener(self) -> Result<TcpListener> {
+        IpAddr::from(self).into_listener().await
+    }
+}
+
+impl ServeTarget for &str {
+    async fn into_listener(self) -> Result<TcpListener> {
+        // Accept both "ip:port" and bare "ip" (which gets the default port).
+        let addr = if let Ok(addr) = self.parse::<SocketAddr>() {
+            addr
+        } else if let Ok(ip) = self.parse::<IpAddr>() {
+            SocketAddr::from((ip, DEFAULT_PORT))
+        } else {
+            return Err(Error::InvalidAddress(self.to_string()));
+        };
+        Ok(TcpListener::bind(addr).await?)
+    }
+}
+
+impl ServeTarget for SocketAddr {
+    async fn into_listener(self) -> Result<TcpListener> {
+        Ok(TcpListener::bind(self).await?)
+    }
+}
+
+impl ServeTarget for TcpListener {
+    async fn into_listener(self) -> Result<TcpListener> {
+        Ok(self)
     }
 }

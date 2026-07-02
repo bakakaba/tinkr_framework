@@ -2,11 +2,14 @@
 
 Rust based framework for building API's.
 
-`tinkr_framework` provides a builder for standing up an HTTP server (via
+`tinkr_framework` provides a [`Server`] for standing up an HTTP server (via
 [`axum`](https://docs.rs/axum)) and a gRPC server (via
 [`tonic`](https://docs.rs/tonic)) on a **single, multiplexed port**. Requests are
 dispatched by content-type: `application/grpc*` is routed to the registered
 tonic services, everything else is routed to the axum router.
+
+`serve()` runs until the process receives `ctrl-c` (or `SIGTERM` on unix),
+shuts down gracefully, and runs an optional clean-up hook.
 
 ## Features
 
@@ -20,22 +23,31 @@ HTTP/REST support (via `axum`) is always available. Disable gRPC with
 ## Usage
 
 ```rust,no_run
-use tinkr_framework::ServerBuilder;
+use tinkr_framework::Server;
 use axum::routing::get;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = ServerBuilder::new()
-        .bind(([0, 0, 0, 0], 8080))
+    Server::new()
         .route("/health", get(|| async { "ok" }))          // HTTP
         .add_grpc_service(my_grpc_server)                    // gRPC
-        .build()
+        .on_shutdown(async { /* close pools, flush, ... */ })
+        .serve(8080)
         .await?;
-
-    server.serve().await?;
     Ok(())
 }
 ```
+
+`serve()` accepts several bind targets:
+
+| Call                              | Binds                                  |
+| --------------------------------- | -------------------------------------- |
+| `serve(8080)`                     | `0.0.0.0:8080`                         |
+| `serve([127, 0, 0, 1])`           | `127.0.0.1:8080`                       |
+| `serve("10.0.0.1")`               | `10.0.0.1:8080`                        |
+| `serve("10.0.0.1:3000")`          | `10.0.0.1:3000`                        |
+| `serve(socket_addr)`              | the given `SocketAddr`                 |
+| `serve(tcp_listener)`             | a pre-bound `tokio::net::TcpListener` (useful in tests to bind port `0` and read `local_addr()` first) |
 
 ### gRPC services
 

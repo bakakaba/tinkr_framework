@@ -1,5 +1,5 @@
 //! Integration tests verifying that both the HTTP and gRPC routes work on the
-//! same multiplexed port produced by [`tinkr_framework::ServerBuilder`].
+//! same multiplexed port produced by [`tinkr_framework::Server`].
 
 use std::net::SocketAddr;
 
@@ -11,16 +11,17 @@ use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 
 /// Start the demo server on an OS-assigned port and return its address.
+///
+/// The listener is pre-bound on port 0 so the address is known before the
+/// server task starts; `serve()` accepts the bound listener directly.
 async fn spawn_server() -> SocketAddr {
-    let bind = SocketAddr::from(([127, 0, 0, 1], 0));
-    let server = demo::builder(bind)
-        .build()
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
-        .expect("failed to build server");
-    let addr = server.local_addr().expect("failed to read local addr");
+        .expect("failed to bind listener");
+    let addr = listener.local_addr().expect("failed to read local addr");
 
     tokio::spawn(async move {
-        server.serve().await.expect("server error");
+        demo::server().serve(listener).await.expect("server error");
     });
 
     // Give the spawned task a moment to start accepting connections.

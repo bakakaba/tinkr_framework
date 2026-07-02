@@ -3,7 +3,7 @@
 //!
 //! The gRPC code is generated from `proto/hello.proto` at build time.
 
-use tinkr_framework::ServerBuilder;
+use tinkr_framework::Server;
 use tonic::{Request, Response, Status};
 
 /// Generated protobuf types (client + server) for the `hello` package.
@@ -31,13 +31,12 @@ impl Greeter for MyGreeter {
     }
 }
 
-/// Build a [`ServerBuilder`] wired with an HTTP `GET /health` route and the
-/// gRPC [`Greeter`] service. Bound to `addr`.
-pub fn builder(addr: std::net::SocketAddr) -> ServerBuilder {
+/// Build a [`Server`] wired with an HTTP `GET /health` route and the gRPC
+/// [`Greeter`] service. Call `.serve(target)` on the result to run it.
+pub fn server() -> Server {
     use axum::routing::get;
 
-    ServerBuilder::new()
-        .bind(addr)
+    Server::new()
         .route("/health", get(|| async { "ok" }))
         .add_grpc_service(GreeterServer::new(MyGreeter))
 }

@@ -11,6 +11,11 @@ pub enum Error {
     /// The server was built without any routes (neither HTTP nor gRPC).
     #[error("no routes configured: register at least one HTTP route or gRPC service")]
     NoRoutes,
+
+    /// The string passed to [`crate::Server::serve`] is neither a valid
+    /// `ip:port` pair nor a bare IP address.
+    #[error("invalid address: {0}")]
+    InvalidAddress(String),
 }
 
 /// Convenience alias for results returned by this crate.
