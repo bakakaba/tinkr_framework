@@ -31,12 +31,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::new()
         .route("/health", get(|| async { "ok" }))          // HTTP
         .add_grpc_service(my_grpc_server)                    // gRPC
-        .on_shutdown(async { /* close pools, flush, ... */ })
         .serve(8080)
         .await?;
     Ok(())
 }
 ```
+
+Optionally, register a clean-up hook with `.on_shutdown(async { ... })` — it
+runs after graceful shutdown completes, right before `serve()` returns.
 
 `serve()` accepts several bind targets:
 
@@ -67,8 +69,11 @@ The `demo` crate (`crates/demo`, not published) shows a full setup: a
 and the gRPC `Greeter` service — all on one port.
 
 ```sh
-# Run the example server
-cargo run -p demo --example combined
+# Minimal configuration to get started
+cargo run -p demo --example quickstart
+
+# Every optional knob: router merging, shutdown hook, serve targets, ...
+cargo run -p demo --example kitchen_sink
 
 # Verify both protocols share one port
 cargo test -p demo

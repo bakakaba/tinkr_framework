@@ -1,9 +1,14 @@
 //! Demo crate: shows how to stand up a multiplexed HTTP + gRPC server using
 //! [`tinkr_framework`].
 //!
-//! The gRPC code is generated from `proto/hello.proto` at build time.
+//! The gRPC code is generated from `proto/hello.proto` at build time. This
+//! crate provides the generated [`pb`] module and a trivial [`MyGreeter`]
+//! service implementation; see the runnable examples for full server setups:
+//!
+//! - `examples/quickstart.rs` — the minimal configuration to get started.
+//! - `examples/kitchen_sink.rs` — every optional knob (router merging,
+//!   shutdown hook, serve targets, ...).
 
-use tinkr_framework::Server;
 use tonic::{Request, Response, Status};
 
 /// Generated protobuf types (client + server) for the `hello` package.
@@ -11,7 +16,7 @@ pub mod pb {
     tonic::include_proto!("hello");
 }
 
-use pb::greeter_server::{Greeter, GreeterServer};
+use pb::greeter_server::Greeter;
 use pb::{HelloReply, HelloRequest};
 
 /// A trivial [`Greeter`] implementation.
@@ -29,14 +34,4 @@ impl Greeter for MyGreeter {
             message: format!("Hello {name}!"),
         }))
     }
-}
-
-/// Build a [`Server`] wired with an HTTP `GET /health` route and the gRPC
-/// [`Greeter`] service. Call `.serve(target)` on the result to run it.
-pub fn server() -> Server {
-    use axum::routing::get;
-
-    Server::new()
-        .route("/health", get(|| async { "ok" }))
-        .add_grpc_service(GreeterServer::new(MyGreeter))
 }

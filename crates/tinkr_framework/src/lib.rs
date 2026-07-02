@@ -21,7 +21,6 @@
 //!
 //! Server::new()
 //!     .route("/health", get(|| async { "ok" }))
-//!     .on_shutdown(async { println!("cleaning up") })
 //!     .serve(8080)
 //!     .await?;
 //! # Ok(())

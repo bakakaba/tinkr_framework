@@ -4,11 +4,15 @@
 use std::net::SocketAddr;
 
 use demo::pb::greeter_client::GreeterClient;
+use demo::pb::greeter_server::GreeterServer;
 use demo::pb::HelloRequest;
+use demo::MyGreeter;
 
+use axum::routing::get;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
+use tinkr_framework::Server;
 
 /// Start the demo server on an OS-assigned port and return its address.
 ///
@@ -21,7 +25,12 @@ async fn spawn_server() -> SocketAddr {
     let addr = listener.local_addr().expect("failed to read local addr");
 
     tokio::spawn(async move {
-        demo::server().serve(listener).await.expect("server error");
+        Server::new()
+            .route("/health", get(|| async { "ok" }))
+            .add_grpc_service(GreeterServer::new(MyGreeter))
+            .serve(listener)
+            .await
+            .expect("server error");
     });
 
     // Give the spawned task a moment to start accepting connections.
