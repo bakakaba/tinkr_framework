@@ -6,6 +6,6 @@
 #[test]
 #[should_panic]
 fn double_init_panics() {
-    tinkr_framework::bootstrap::init();
-    tinkr_framework::bootstrap::init();
+    tinkr_framework::init();
+    tinkr_framework::init();
 }

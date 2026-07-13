@@ -19,9 +19,10 @@
 //!
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod bootstrap;
+mod bootstrap;
 pub mod errors;
 pub mod server;
 pub mod utilities;
 
+pub use bootstrap::init;
 pub use server::Server;
