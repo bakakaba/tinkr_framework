@@ -3,8 +3,10 @@ name = "tinkr_framework"
 edition.workspace = true
 version = "0.1.0"
 description = "Framework for building APIs: multiplexed HTTP + gRPC serving on a single port, with bootstrap and logging."
-license = "MIT"
-repository = "https://github.com/bakakaba/tinkr_framework"
+readme.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/tinkr_framework"
 
 [features]
 default = ["grpc"]

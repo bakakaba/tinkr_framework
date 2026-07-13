@@ -4,6 +4,9 @@ members = ["crates/*"]
 
 [workspace.package]
 edition = "2024"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/bakakaba/tinkr_framework"
 
 [workspace.dependencies]
 tinkr_framework = { path = "crates/tinkr_framework" }
