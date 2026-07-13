@@ -26,19 +26,15 @@ type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
+/// use axum::routing::get;
 /// use tinkr_framework::Server;
 ///
-/// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-/// use axum::routing::get;
-///
-/// Server::new()
-///     .route("/health", get(|| async { "ok" }))
-///     .serve(8080)
-///     .await?;
-/// # Ok(())
-/// # }
+/// let server = Server::new().route("/health", get(|| async { "ok" }));
 /// ```
+///
+/// Follow with `.serve(...)` to bind and run until shutdown; see the demo
+/// crate (`crates/demo/examples/`) for complete programs.
 pub struct Server {
     router: axum::Router,
     has_http: bool,
@@ -137,18 +133,13 @@ impl Server {
     /// Build the routes anywhere (e.g. with `tonic::service::Routes::builder()`)
     /// and pass them in whole.
     ///
-    /// # Panics
-    ///
-    /// Panics if called more than once. A tonic [`Routes`] always carries its
-    /// own `unimplemented` fallback and axum cannot merge two routers that
-    /// both have one. Register additional services with
-    /// [`grpc_service`](Self::grpc_service) instead.
-    ///
-    /// Note: the fallback that comes with `routes` applies to the whole
-    /// server, so unmatched requests will receive a gRPC `Unimplemented`
+    /// After calling this, unmatched requests receive a gRPC `Unimplemented`
     /// response instead of an HTTP 404.
     ///
-    /// [`Routes`]: tonic::service::Routes
+    /// # Panics
+    ///
+    /// Panics if called more than once. Register additional services with
+    /// [`grpc_service`](Self::grpc_service) instead.
     #[cfg(feature = "grpc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
     pub fn grpc_routes(mut self, routes: tonic::service::Routes) -> Self {

@@ -1,17 +1,12 @@
 //! Bootstraps common resources used when running a service.
 //!
-//! [`init`] loads environment variables from a `.env` file (if present) and
-//! initializes logging via [`tracing_subscriber`]. The log output format is
-//! selected based on where the process is running:
+//! The log output format is selected based on where the process is running:
 //!
 //! - **Local** (default): human-readable output.
-//! - **Deployed** (Kubernetes or Cloud Run detected): structured JSON output.
-//!   With the `gcp` feature enabled, logs are formatted for Google Cloud
-//!   Logging via [`tracing-stackdriver`](https://docs.rs/tracing-stackdriver).
-//!
-//! A deployment is detected when any of these environment variables are set:
-//! `KUBERNETES_SERVICE_HOST` (Kubernetes), `K_SERVICE` (Cloud Run service),
-//! or `CLOUD_RUN_JOB` (Cloud Run job).
+//! - **Deployed** (Kubernetes or Cloud Run detected via
+//!   `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or `CLOUD_RUN_JOB`): structured
+//!   JSON output, or the Google Cloud Logging format with the `gcp` feature
+//!   enabled.
 
 use std::env;
 
@@ -22,7 +17,8 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 ///
 /// Initializes:
 /// - Environment variables (from a `.env` file, if present)
-/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`])
+/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`], formatted per the
+///   [module docs](self))
 ///
 /// # Panics
 ///

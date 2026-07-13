@@ -55,28 +55,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(|| async { "ok" }))
         // Repeat `.grpc_service(...)` for each gRPC service you have.
         .grpc_service(GreeterServer::new(MyGreeter))
-        // Pre-built tonic routes can be merged in whole (mirrors `.router()`):
+        // Pre-built `tonic::service::Routes` can be merged in whole with
+        // `.grpc_routes(routes)` — the gRPC counterpart of `.router(...)`.
+        // May only be called once; see the `Server::grpc_routes` docs.
         //
-        //   let routes = tonic::service::Routes::builder()
-        //       .add_service(OtherServer::new(OtherImpl))
-        //       .to_owned()
-        //       .routes();
-        //   ... .grpc_routes(routes)
-        //
-        // Note: may only be called once; tonic `Routes` carry a fallback and
-        // axum cannot merge two routers that both have one.
         // Optional: runs after graceful shutdown completes, right before
         // `serve()` returns. Close database pools, flush buffers, etc. here.
         .on_shutdown(async { println!("shutting down, running clean-up") })
-        // `serve()` accepts several bind targets:
-        //   .serve(8080)                       -> 0.0.0.0:8080
-        //   .serve([127, 0, 0, 1])             -> 127.0.0.1:8080
-        //   .serve(ip_addr)                    -> IpAddr, port 8080
-        //   .serve("10.0.0.1")                 -> 10.0.0.1:8080
-        //   .serve(socket_addr)                -> any SocketAddr
-        //   .serve(tcp_listener)               -> pre-bound tokio TcpListener
-        //                                         (bind port 0 in tests, read
-        //                                         local_addr() before serving)
+        // `serve()` accepts several bind targets (port, IP, string, socket
+        // address, pre-bound listener); see the `Server::serve` docs.
         .serve("127.0.0.1:8080")
         .await?;
 

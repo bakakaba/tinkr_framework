@@ -23,6 +23,17 @@ Rust workspace with two crates: `crates/tinkr_framework` (the published library)
 - docs.rs builds with `all-features` and `--cfg docsrs`; use `#[cfg_attr(docsrs, doc(cfg(...)))]`
   on feature-gated public items.
 
+## Documentation
+
+- Code examples must be runnable doctests executed by `cargo test` — never `no_run`,
+  `ignore`, or untested code blocks (README included). If a flow cannot execute in a
+  doctest (e.g. `serve()` blocks on signals), reference the demo crate instead.
+- Demonstrate topics with full demos in `crates/demo/examples/`, not inline pseudo-code.
+- Keep docs to a useful overview; omit implementation detail unless required to use the API.
+- Single source of truth: never duplicate API specifics (tables, option lists) away from
+  the code they describe — copies drift.
+- Document options/features by how and why to use them, not their implementation.
+
 ## Conventions
 
 - All deps are declared in the root `[workspace.dependencies]`; crates use `{ workspace = true }`.

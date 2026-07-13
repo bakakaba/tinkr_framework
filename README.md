@@ -13,44 +13,20 @@ shuts down gracefully, and runs an optional clean-up hook.
 
 ## Features
 
-| Feature | Default | Description                                                     |
-| ------- | ------- | --------------------------------------------------------------- |
-| `grpc`  | yes     | gRPC support via `tonic`.                                        |
-| `gcp`   | no      | Format deployed logs for Google Cloud Logging (`tracing-stackdriver`). |
+| Feature | Default | When to enable                                                    |
+| ------- | ------- | ----------------------------------------------------------------- |
+| `grpc`  | yes     | Serving gRPC via `tonic`. Disable with `default-features = false`. |
+| `gcp`   | no      | Deploying to Google Cloud — deployed logs use the Cloud Logging format. |
 
-HTTP/REST support (via `axum`) is always available. Disable gRPC with
-`default-features = false`.
+HTTP/REST support (via `axum`) is always available.
 
 ## Usage
 
-```rust,no_run
-use tinkr_framework::Server;
-use axum::routing::get;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    Server::new()
-        .route("/health", get(|| async { "ok" }))          // HTTP
-        .grpc_service(my_grpc_server)                    // gRPC
-        .serve(8080)
-        .await?;
-    Ok(())
-}
-```
-
-Optionally, register a clean-up hook with `.on_shutdown(async { ... })` — it
-runs after graceful shutdown completes, right before `serve()` returns.
-
-`serve()` accepts several bind targets:
-
-| Call                              | Binds                                  |
-| --------------------------------- | -------------------------------------- |
-| `serve(8080)`                     | `0.0.0.0:8080`                         |
-| `serve([127, 0, 0, 1])`           | `127.0.0.1:8080`                       |
-| `serve("10.0.0.1")`               | `10.0.0.1:8080`                        |
-| `serve("10.0.0.1:3000")`          | `10.0.0.1:3000`                        |
-| `serve(socket_addr)`              | the given `SocketAddr`                 |
-| `serve(tcp_listener)`             | a pre-bound `tokio::net::TcpListener` (useful in tests to bind port `0` and read `local_addr()` first) |
+Register HTTP routes and gRPC services on a `Server`, then call `serve()`.
+See the [demo](#demo) for complete, runnable programs, and the `Server`
+rustdoc for the accepted bind targets. Optionally, register a clean-up hook
+with `.on_shutdown(async { ... })` — it runs after graceful shutdown
+completes, right before `serve()` returns.
 
 ### gRPC services
 
@@ -65,37 +41,16 @@ Both emit the same concrete `XxxServer<T>`, so registration is identical.
 
 ## Bootstrap
 
-`bootstrap::init()` sets up common service resources: it loads environment
-variables from a `.env` file (if present) and initializes logging, filtered by
-`RUST_LOG`.
-
-```rust,no_run
-fn main() {
-    tinkr_framework::bootstrap::init();
-    // ...
-}
-```
-
-The log format is picked automatically:
-
-- **Local**: human-readable output.
-- **Deployed** (Kubernetes or Cloud Run detected via `KUBERNETES_SERVICE_HOST`,
-  `K_SERVICE`, or `CLOUD_RUN_JOB`): structured JSON. With the `gcp` feature
-  enabled, logs are formatted for Google Cloud Logging instead.
-
-Call it **exactly once**, at the start of the application — a second call
-panics.
+Call `bootstrap::init()` first thing in `main`: it loads `.env` (if present)
+and initializes `RUST_LOG`-filtered logging, picking the output format for the
+environment (human-readable locally, structured for deployments). Call it
+**exactly once** — a second call panics.
 
 ## Utilities
 
-`new_id(prefix)` generates a prefixed [ULID](https://github.com/ulid/spec)
-identifier, e.g. `user_01JGWXYZ...`. Persisted identifiers should always
-include a prefix; an empty prefix yields a bare ULID.
-
-A pre-built `tonic::service::Routes` can be merged in whole with
-`grpc_routes(routes)` — the gRPC counterpart of `router(...)`. It may only be
-called once (tonic `Routes` carry a fallback and axum cannot merge two routers
-that both have one); register additional services with `grpc_service`.
+`utilities::new_id(prefix)` generates a prefixed
+[ULID](https://github.com/ulid/spec) identifier, e.g. `user_01JGWXYZ...`.
+Persisted identifiers should always include a prefix.
 
 ## Demo
 
