@@ -17,28 +17,11 @@
 //!
 //! HTTP/REST support (via [`axum`]) is always available.
 //!
-//! # Example
-//!
-//! ```no_run
-//! use tinkr_framework::Server;
-//!
-//! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! use axum::routing::get;
-//!
-//! Server::new()
-//!     .route("/health", get(|| async { "ok" }))
-//!     .serve(8080)
-//!     .await?;
-//! # Ok(())
-//! # }
-//! ```
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod bootstrap;
-pub mod error;
+pub mod errors;
 pub mod server;
 pub mod utilities;
 
-pub use error::{Error, Result};
-pub use server::{ServeTarget, Server};
-pub use utilities::new_id;
+pub use server::Server;

@@ -15,7 +15,7 @@ use std::pin::Pin;
 
 use tokio::net::TcpListener;
 
-use crate::error::{Error, Result};
+use crate::errors::{Error, Result};
 
 /// The port used when a [`ServeTarget`] specifies only an address.
 const DEFAULT_PORT: u16 = 8080;
