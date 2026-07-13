@@ -12,9 +12,6 @@ tonic-prost = { workspace = true }
 prost = { workspace = true }
 axum = { workspace = true }
 
-[build-dependencies]
-tonic-prost-build = { workspace = true }
-
 [dev-dependencies]
 hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["client", "client-legacy", "http1", "tokio"] }

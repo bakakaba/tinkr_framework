@@ -44,6 +44,11 @@ Rust workspace with two crates: `crates/tinkr_framework` (the published library)
   it intentionally panics on double init.
 - Tests that set the global tracing subscriber go in their own integration-test file
   (own process), e.g. `tests/bootstrap_double_init.rs`.
-- `crates/demo/build.rs` compiles `proto/hello.proto` via `tonic-prost-build`; regenerating
-  happens automatically on build, nothing to run manually.
+- The demo's gRPC code is generated from `crates/demo/proto/hello.proto` with `buf generate`
+  (remote BSR plugins, versions pinned in `crates/demo/buf.gen.yaml`) and checked in under
+  `crates/demo/src/gen/`. After editing the proto, run `just gen` (requires the `buf` CLI and
+  network access) and commit the result — CI fails if the generated code drifts. Never edit
+  `src/gen/` by hand.
+- Releases are automated: `release-please` opens a release PR from conventional commits on
+  `main`; merging it tags the release and publishes `tinkr_framework` to crates.io.
 - Commit messages: conventional commits (`feat:`, `refactor:`, `chore:`).

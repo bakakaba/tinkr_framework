@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  # BASIC instead of STANDARD: the demo deliberately mirrors tonic's canonical
+  # hello-world (`proto/hello.proto`, package `hello`, service `Greeter`),
+  # which does not follow buf's naming/layout conventions.
+  use:
+    - BASIC
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+breaking:
+  use:
+    - FILE

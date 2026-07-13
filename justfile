@@ -11,3 +11,7 @@ fix:
 # Run all tests
 test:
     cargo test
+
+# Regenerate the demo's gRPC code from proto/hello.proto (requires buf)
+gen:
+    cd crates/demo && buf generate

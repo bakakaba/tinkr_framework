@@ -1,0 +1,10 @@
+version: v2
+clean: true
+plugins:
+  # Message types (prost). Pinned to releases matching the workspace
+  # `prost`/`tonic` 0.14 versions.
+  - remote: buf.build/community/neoeinstein-prost:v0.5.0
+    out: src/gen
+  # gRPC client + server (tonic).
+  - remote: buf.build/community/neoeinstein-tonic:v0.5.0
+    out: src/gen

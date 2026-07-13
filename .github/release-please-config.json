@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "rust",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "merge": false
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "tinkr_framework workspace",
+      "components": ["tinkr_framework", "demo"]
+    }
+  ],
+  "packages": {
+    "crates/tinkr_framework": {
+      "package-name": "tinkr_framework",
+      "component": "tinkr_framework"
+    },
+    "crates/demo": {
+      "package-name": "demo",
+      "component": "demo",
+      "skip-github-release": true,
+      "skip-changelog": true
+    }
+  }
+}

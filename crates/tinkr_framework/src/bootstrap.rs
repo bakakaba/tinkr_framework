@@ -1,12 +1,4 @@
 //! Bootstraps common resources used when running a service.
-//!
-//! The log output format is selected based on where the process is running:
-//!
-//! - **Local** (default): human-readable output.
-//! - **Deployed** (Kubernetes or Cloud Run detected via
-//!   `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or `CLOUD_RUN_JOB`): structured
-//!   JSON output, or the Google Cloud Logging format with the `gcp` feature
-//!   enabled.
 
 use std::env;
 
@@ -17,8 +9,15 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 ///
 /// Initializes:
 /// - Environment variables (from a `.env` file, if present)
-/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`], formatted per the
-///   [module docs](self))
+/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`])
+///
+/// The log output format is selected based on where the process is running:
+///
+/// - **Local** (default): human-readable output.
+/// - **Deployed** (Kubernetes or Cloud Run detected via
+///   `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or `CLOUD_RUN_JOB`): structured
+///   JSON output, or the Google Cloud Logging format with the `gcp` feature
+///   enabled.
 ///
 /// # Panics
 ///

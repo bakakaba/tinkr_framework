@@ -55,8 +55,9 @@ Persisted identifiers should always include a prefix.
 ## Demo
 
 The `demo` crate (`crates/demo`, not published) shows a full setup: a
-`proto/hello.proto`, a `build.rs` that compiles it, an HTTP `GET /health` route,
-and the gRPC `Greeter` service — all on one port.
+`proto/hello.proto` compiled with `buf generate` (generated code is checked in
+under `crates/demo/src/gen/`; run `just gen` after editing the proto), an HTTP
+`GET /health` route, and the gRPC `Greeter` service — all on one port.
 
 ```sh
 # Minimal configuration to get started
