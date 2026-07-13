@@ -13,9 +13,10 @@ shuts down gracefully, and runs an optional clean-up hook.
 
 ## Features
 
-| Feature | Default | Description                              |
-| ------- | ------- | ---------------------------------------- |
-| `grpc`  | yes     | gRPC support via `tonic`.                |
+| Feature | Default | Description                                                     |
+| ------- | ------- | --------------------------------------------------------------- |
+| `grpc`  | yes     | gRPC support via `tonic`.                                        |
+| `gcp`   | no      | Format deployed logs for Google Cloud Logging (`tracing-stackdriver`). |
 
 HTTP/REST support (via `axum`) is always available. Disable gRPC with
 `default-features = false`.
@@ -61,6 +62,36 @@ are supported:
 - **buf** — generate with `buf generate`.
 
 Both emit the same concrete `XxxServer<T>`, so registration is identical.
+
+## Bootstrap
+
+`bootstrap::init()` sets up common service resources: it loads environment
+variables from a `.env` file (if present) and initializes logging, filtered by
+`RUST_LOG`.
+
+```rust,no_run
+fn main() {
+    tinkr_framework::bootstrap::init();
+    // ...
+}
+```
+
+The log format is picked automatically:
+
+- **Local**: human-readable output.
+- **Deployed** (Kubernetes or Cloud Run detected via `KUBERNETES_SERVICE_HOST`,
+  `K_SERVICE`, or `CLOUD_RUN_JOB`): structured JSON. With the `gcp` feature
+  enabled, logs are formatted for Google Cloud Logging instead.
+
+Call it **exactly once**, at the start of the application — a second call
+panics. Use `bootstrap::init_with_filter(filter)` to add extra `EnvFilter`
+directives on top of the environment defaults.
+
+## Utilities
+
+`new_id(prefix)` generates a prefixed [ULID](https://github.com/ulid/spec)
+identifier, e.g. `user_01JGWXYZ...`. Persisted identifiers should always
+include a prefix; an empty prefix yields a bare ULID.
 
 A pre-built `tonic::service::Routes` can be merged in whole with
 `grpc_routes(routes)` — the gRPC counterpart of `router(...)`. It may only be

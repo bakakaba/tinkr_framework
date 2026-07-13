@@ -6,15 +6,20 @@ version = "0.0.0"
 [features]
 default = ["grpc"]
 grpc = ["dep:tonic", "dep:tower", "dep:http"]
+gcp = ["dep:tracing-stackdriver"]
 
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal"] }
 thiserror = { workspace = true }
+dotenvy = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
+ulid = { workspace = true }
 
 axum = { workspace = true, features = ["http2"] }
 tonic = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+tracing-stackdriver = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

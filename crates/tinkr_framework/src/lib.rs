@@ -5,9 +5,15 @@
 //! `ctrl-c` / `SIGTERM`, shuts down gracefully, and runs an optional clean-up
 //! hook.
 //!
+//! It also ships service essentials: [`bootstrap::init`] loads `.env` and
+//! initializes logging (human-readable locally, structured JSON when
+//! deployed), and [`new_id`] generates prefixed ULID identifiers.
+//!
 //! # Features
 //!
 //! - `grpc` (default): gRPC support via [`tonic`].
+//! - `gcp`: format deployed logs for Google Cloud Logging
+//!   ([`tracing-stackdriver`](https://docs.rs/tracing-stackdriver)).
 //!
 //! HTTP/REST support (via [`axum`]) is always available.
 //!
@@ -28,8 +34,11 @@
 //! ```
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub mod bootstrap;
 pub mod error;
 pub mod server;
+pub mod utilities;
 
 pub use error::{Error, Result};
 pub use server::{ServeTarget, Server};
+pub use utilities::new_id;
