@@ -18,8 +18,8 @@
 //! Press ctrl-c to shut down gracefully.
 
 use axum::routing::get;
-use demo::pb::greeter_server::GreeterServer;
 use demo::MyGreeter;
+use demo::pb::greeter_server::GreeterServer;
 use tinkr_framework::Server;
 
 #[tokio::main]

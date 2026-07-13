@@ -3,10 +3,10 @@
 
 use std::net::SocketAddr;
 
+use demo::MyGreeter;
+use demo::pb::HelloRequest;
 use demo::pb::greeter_client::GreeterClient;
 use demo::pb::greeter_server::GreeterServer;
-use demo::pb::HelloRequest;
-use demo::MyGreeter;
 
 use axum::routing::get;
 use http_body_util::BodyExt;

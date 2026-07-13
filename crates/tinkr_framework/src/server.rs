@@ -117,10 +117,8 @@ impl Server {
     #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
     pub fn grpc_service<S>(mut self, svc: S) -> Self
     where
-        S: tower::Service<
-                http::Request<tonic::body::Body>,
-                Error = std::convert::Infallible,
-            > + tonic::server::NamedService
+        S: tower::Service<http::Request<tonic::body::Body>, Error = std::convert::Infallible>
+            + tonic::server::NamedService
             + Clone
             + Send
             + Sync
@@ -162,7 +160,9 @@ impl Server {
         );
         self.has_grpc_routes = true;
         self.grpc = tonic::service::Routes::from(
-            self.grpc.into_axum_router().merge(routes.into_axum_router()),
+            self.grpc
+                .into_axum_router()
+                .merge(routes.into_axum_router()),
         );
         self.has_grpc = true;
         self
