@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/bakakaba/tinkr_framework/compare/v0.1.0...v0.1.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* add missing link to docs ([b341dc8](https://github.com/bakakaba/tinkr_framework/commit/b341dc83049e80adad3fc45eed6d70819308321a))
+
 ## 0.1.0 (2026-07-13)
 
 
