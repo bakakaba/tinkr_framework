@@ -84,8 +84,7 @@ The log format is picked automatically:
   enabled, logs are formatted for Google Cloud Logging instead.
 
 Call it **exactly once**, at the start of the application — a second call
-panics. Use `bootstrap::init_with_filter(filter)` to add extra `EnvFilter`
-directives on top of the environment defaults.
+panics.
 
 ## Utilities
 

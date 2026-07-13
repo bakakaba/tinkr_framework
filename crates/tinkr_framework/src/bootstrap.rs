@@ -31,29 +31,8 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 pub fn init() {
     // Load .env first so RUST_LOG from .env is picked up by the filter.
     dotenv().ok();
-    init_with_filter(EnvFilter::from_default_env());
-}
 
-/// Like [`init`], but with a caller-provided [`EnvFilter`].
-///
-/// Useful for adding extra directives on top of the default environment
-/// filter:
-///
-/// ```no_run
-/// use tinkr_framework::bootstrap;
-/// use tracing_subscriber::EnvFilter;
-///
-/// let filter = EnvFilter::from_default_env()
-///     .add_directive("sqlx::postgres::notice=warn".parse().unwrap());
-/// bootstrap::init_with_filter(filter);
-/// ```
-///
-/// # Panics
-///
-/// Panics if a global tracing subscriber is already set. Call this exactly
-/// once, at the start of the application.
-pub fn init_with_filter(filter: EnvFilter) {
-    dotenv().ok();
+    let filter = EnvFilter::from_default_env();
 
     let is_deployed = env::var("KUBERNETES_SERVICE_HOST").is_ok() // Kubernetes
         || env::var("K_SERVICE").is_ok() // Cloud Run service

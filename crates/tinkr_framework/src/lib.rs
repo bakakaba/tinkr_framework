@@ -7,7 +7,7 @@
 //!
 //! It also ships service essentials: [`bootstrap::init`] loads `.env` and
 //! initializes logging (human-readable locally, structured JSON when
-//! deployed), and [`new_id`] generates prefixed ULID identifiers.
+//! deployed), and [`utilities::new_id`] generates prefixed ULID identifiers.
 //!
 //! # Features
 //!
