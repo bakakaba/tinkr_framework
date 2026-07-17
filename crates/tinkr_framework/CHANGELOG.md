@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2](https://github.com/bakakaba/tinkr_framework/compare/v0.1.1...v0.1.2) (2026-07-17)
+
+
+### Features
+
+* add built-in health reporting ([408f42f](https://github.com/bakakaba/tinkr_framework/commit/408f42ff1e7b53880d5342e4d127297a4521302a))
+* add configuration to the framework ([05df1b3](https://github.com/bakakaba/tinkr_framework/commit/05df1b3c381ae0fd68b374e819ba10588c5bf6df))
+* default the RUST_LOG to info ([2f167cf](https://github.com/bakakaba/tinkr_framework/commit/2f167cfc9264a0fabfa5a13e3ff326ace638dee8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tinkr_config bumped from 0.1.1 to 0.1.2
+
 ## [0.1.1](https://github.com/bakakaba/tinkr_framework/compare/v0.1.0...v0.1.1) (2026-07-13)
 
 
