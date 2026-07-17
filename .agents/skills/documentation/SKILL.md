@@ -35,7 +35,7 @@ implementation.
    run in a doctest (e.g. `serve()` blocks on signals) reference
    `crates/demo/examples/` instead — demonstrate topics with full demos
    there, not inline pseudo-code.
-8. **Crate root docs stay minimal:** a one-line purpose statement plus a
+8. **Crate root docs stay minimal:** a purpose statement plus a
    `# Features` section. Don't enumerate modules or items — rustdoc lists
    them with their own summaries. Don't announce re-exports in prose; they
    are discoverable through tooling.
