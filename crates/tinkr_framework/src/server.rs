@@ -26,8 +26,7 @@ type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 /// # Example
 ///
 /// ```
-/// use axum::routing::get;
-/// use tinkr_framework::Server;
+/// use tinkr_framework::{Server, routing::get};
 ///
 /// let server = Server::new().route("/health", get(|| async { "ok" }));
 /// ```

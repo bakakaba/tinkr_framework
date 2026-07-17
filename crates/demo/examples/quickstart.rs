@@ -10,17 +10,16 @@
 //! Then, in another shell:
 //!
 //! ```sh
-//! curl http://127.0.0.1:8080/health           # -> ok   (HTTP via axum)
+//! curl http://127.0.0.1:8080/health           # -> ok
 //! grpcurl -plaintext -d '{"name":"world"}' \
 //!     127.0.0.1:8080 hello.Greeter/SayHello    # -> {"message":"Hello world!"}
 //! ```
 //!
 //! Press ctrl-c to shut down gracefully.
 
-use axum::routing::get;
 use demo::MyGreeter;
 use demo::pb::greeter_server::GreeterServer;
-use tinkr_framework::Server;
+use tinkr_framework::{Server, routing::get};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

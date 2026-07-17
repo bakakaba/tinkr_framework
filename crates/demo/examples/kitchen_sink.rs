@@ -2,7 +2,7 @@
 //!
 //! Shows, on top of what `quickstart` covers:
 //!
-//! - merging a pre-built [`axum::Router`] with `.router(...)`
+//! - merging a pre-built [`Router`] with `.router(...)`
 //! - mixing in single routes with `.route(...)`
 //! - registering gRPC services with `.grpc_service(...)`
 //! - a graceful-shutdown clean-up hook with `.on_shutdown(...)`
@@ -28,15 +28,14 @@
 //! drain first, then the `.on_shutdown(...)` hook runs before the process
 //! exits.
 
-use axum::Router;
-use axum::routing::get;
 use demo::MyGreeter;
 use demo::pb::greeter_server::GreeterServer;
-use tinkr_framework::Server;
+use tinkr_framework::routing::get;
+use tinkr_framework::{Router, Server};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // A pre-built axum Router. Build these anywhere (other modules, other
+    // A pre-built Router. Build these anywhere (other modules, other
     // crates) and merge them in whole with `.router(...)`.
     let api = Router::new()
         .route(

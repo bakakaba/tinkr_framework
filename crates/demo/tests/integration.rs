@@ -8,11 +8,11 @@ use demo::pb::HelloRequest;
 use demo::pb::greeter_client::GreeterClient;
 use demo::pb::greeter_server::GreeterServer;
 
-use axum::routing::get;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use tinkr_framework::Server;
+use tinkr_framework::routing::get;
 
 /// Start the demo server on an OS-assigned port and return its address.
 ///

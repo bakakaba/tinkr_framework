@@ -1,21 +1,12 @@
 //! `tinkr_framework` — a reusable library for standing up API servers.
 //!
-//! It provides a [`Server`] for running HTTP (via [`axum`]) and gRPC (via
-//! [`tonic`]) on a single, multiplexed port. [`Server::serve`] runs until
-//! `ctrl-c` / `SIGTERM`, shuts down gracefully, and runs an optional clean-up
-//! hook.
-//!
-//! It also ships service essentials: [`bootstrap::init`] loads `.env` and
-//! initializes logging (human-readable locally, structured JSON when
-//! deployed), and [`utilities::new_id`] generates prefixed ULID identifiers.
+//! [`Server`] serves HTTP and gRPC on a single port.
 //!
 //! # Features
 //!
-//! - `grpc` (default): gRPC support via [`tonic`].
+//! - `grpc` (default): gRPC support. Without it the server is HTTP-only.
 //! - `gcp`: format deployed logs for Google Cloud Logging
 //!   ([`tracing-stackdriver`](https://docs.rs/tracing-stackdriver)).
-//!
-//! HTTP/REST support (via [`axum`]) is always available.
 //!
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -26,3 +17,13 @@ pub mod utilities;
 
 pub use bootstrap::init;
 pub use server::Server;
+
+#[doc(no_inline)]
+pub use axum;
+#[doc(no_inline)]
+pub use axum::{Router, routing};
+
+#[cfg(feature = "grpc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+#[doc(no_inline)]
+pub use tonic;
