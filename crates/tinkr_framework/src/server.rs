@@ -1,9 +1,8 @@
 //! HTTP + gRPC server built on a single, multiplexed port.
 //!
-//! [`Server`] assembles an [`axum::Router`] (HTTP/REST) and any number of
-//! tonic gRPC services onto a single listener. Requests are dispatched by
-//! content-type: `application/grpc*` is routed to the tonic services and
-//! everything else is routed to the axum router.
+//! [`Server`] serves an [`axum::Router`] (HTTP/REST) and any number of tonic
+//! gRPC services on one listener, telling the two kinds of traffic apart
+//! automatically.
 //!
 //! [`Server::serve`] runs until the process receives `ctrl-c` (or `SIGTERM` on
 //! unix), then shuts down gracefully and runs the optional
@@ -38,16 +37,12 @@ type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 pub struct Server {
     router: axum::Router,
     has_http: bool,
-    /// gRPC routes accumulated *without* tonic's `unimplemented` fallback, so
-    /// unmatched paths fall through to axum's default 404 and so a
-    /// user-supplied [`grpc_routes`](Self::grpc_routes) (which carries the one
-    /// allowed custom fallback) can still be merged in.
+    // gRPC routes accumulated *without* tonic's `unimplemented` fallback, so
+    // unmatched paths fall through to axum's default 404.
     #[cfg(feature = "grpc")]
     grpc: tonic::service::Routes,
     #[cfg(feature = "grpc")]
     has_grpc: bool,
-    #[cfg(feature = "grpc")]
-    has_grpc_routes: bool,
     shutdown_hook: Option<ShutdownHook>,
 }
 
@@ -81,8 +76,6 @@ impl Server {
             grpc: tonic::service::Routes::from(axum::Router::new()),
             #[cfg(feature = "grpc")]
             has_grpc: false,
-            #[cfg(feature = "grpc")]
-            has_grpc_routes: false,
             shutdown_hook: None,
         }
     }
@@ -103,12 +96,12 @@ impl Server {
         self
     }
 
-    /// Register a tonic gRPC service.
+    /// Register a tonic gRPC service. Call repeatedly to register multiple
+    /// services.
     ///
-    /// `svc` is the generated `XxxServer<T>` type produced by `tonic-build`,
-    /// `tonic-prost-build`, or `buf`. All three toolchains emit the same
-    /// concrete server type, so registration is identical regardless of how the
-    /// code was generated. Call repeatedly to register multiple services.
+    /// # Arguments
+    ///
+    /// - `svc` — the generated server type (e.g. `GreeterServer<MyGreeter>`)
     #[cfg(feature = "grpc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
     pub fn grpc_service<S>(mut self, svc: S) -> Self
@@ -127,38 +120,6 @@ impl Server {
         self
     }
 
-    /// Merge a pre-built [`tonic::service::Routes`] into the gRPC routes,
-    /// mirroring [`router`](Self::router) for the HTTP side.
-    ///
-    /// Build the routes anywhere (e.g. with `tonic::service::Routes::builder()`)
-    /// and pass them in whole.
-    ///
-    /// After calling this, unmatched requests receive a gRPC `Unimplemented`
-    /// response instead of an HTTP 404.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called more than once. Register additional services with
-    /// [`grpc_service`](Self::grpc_service) instead.
-    #[cfg(feature = "grpc")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
-    pub fn grpc_routes(mut self, routes: tonic::service::Routes) -> Self {
-        assert!(
-            !self.has_grpc_routes,
-            "`grpc_routes` may only be called once: tonic `Routes` carry a \
-             fallback and axum cannot merge two routers that both have one. \
-             Register additional services with `grpc_service`."
-        );
-        self.has_grpc_routes = true;
-        self.grpc = tonic::service::Routes::from(
-            self.grpc
-                .into_axum_router()
-                .merge(routes.into_axum_router()),
-        );
-        self.has_grpc = true;
-        self
-    }
-
     /// Register a clean-up hook that runs after graceful shutdown completes,
     /// just before [`serve`](Self::serve) returns.
     ///
@@ -172,18 +133,12 @@ impl Server {
     /// `SIGTERM` on unix), then shut down gracefully and run the
     /// [`on_shutdown`](Self::on_shutdown) hook, if any.
     ///
-    /// `target` may be:
+    /// # Arguments
     ///
-    /// - a port: `serve(8080)` binds `0.0.0.0:8080`
-    /// - an address: `serve([127, 0, 0, 1])` or `serve(IpAddr::...)` binds port
-    ///   `8080`
-    /// - a string: `serve("127.0.0.1")` or `serve("127.0.0.1:3000")`
-    /// - a [`SocketAddr`]
-    /// - a pre-bound [`tokio::net::TcpListener`] (useful in tests: bind port
-    ///   `0` yourself and read `local_addr()` before serving)
-    ///
-    /// Returns [`Error::NoRoutes`] if neither HTTP routes nor gRPC services
-    /// were registered.
+    /// - `target` — a port (`8080`), an address (`[127, 0, 0, 1]`,
+    ///   `"127.0.0.1"`, `"127.0.0.1:3000"`, a [`SocketAddr`]), or a pre-bound
+    ///   [`tokio::net::TcpListener`] (useful in tests: bind port `0` and read
+    ///   `local_addr()` before serving)
     pub async fn serve(mut self, target: impl ServeTarget) -> Result<()> {
         let hook = self.shutdown_hook.take();
         let app = self.into_app()?;

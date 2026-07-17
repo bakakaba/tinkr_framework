@@ -10,13 +10,12 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 ///
 /// Initializes:
 /// - Environment variables (from a `.env` file, if present)
-/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`], defaulting to `info`
-///   when `RUST_LOG` is unset)
+/// - Logging (filtered by `RUST_LOG`, defaulting to `info` when unset)
 ///
 /// The log output format is selected based on where the process is running:
 ///
 /// - **Local** (default): human-readable output.
-/// - **Deployed** (Kubernetes or Cloud Run detected via
+/// - **Deployed** (Kubernetes or Cloud Run, detected via
 ///   `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or `CLOUD_RUN_JOB`): structured
 ///   JSON output, or the Google Cloud Logging format with the `gcp` feature
 ///   enabled.

@@ -1,11 +1,9 @@
 //! Demo crate: shows how to stand up a multiplexed HTTP + gRPC server using
 //! [`tinkr_framework`].
 //!
-//! The gRPC code is generated from `proto/hello.proto` with
-//! [`buf generate`](https://buf.build/docs/generate/) and checked in under
-//! `src/gen/`; run `just gen` after editing the proto. This crate provides
-//! the generated [`pb`] module and a trivial [`MyGreeter`] service
-//! implementation; see the runnable examples for full server setups:
+//! Provides the [`pb`] module (generated from `proto/hello.proto`) and a
+//! trivial [`MyGreeter`] service implementation; see the runnable examples
+//! for full server setups:
 //!
 //! - `examples/quickstart.rs` — the minimal configuration to get started.
 //! - `examples/kitchen_sink.rs` — every optional knob (router merging,

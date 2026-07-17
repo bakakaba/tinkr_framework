@@ -5,7 +5,6 @@
 //! - merging a pre-built [`axum::Router`] with `.router(...)`
 //! - mixing in single routes with `.route(...)`
 //! - registering gRPC services with `.grpc_service(...)`
-//! - merging pre-built tonic routes with `.grpc_routes(...)`
 //! - a graceful-shutdown clean-up hook with `.on_shutdown(...)`
 //! - the flexible bind targets accepted by `.serve(...)`
 //!
@@ -55,10 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(|| async { "ok" }))
         // Repeat `.grpc_service(...)` for each gRPC service you have.
         .grpc_service(GreeterServer::new(MyGreeter))
-        // Pre-built `tonic::service::Routes` can be merged in whole with
-        // `.grpc_routes(routes)` — the gRPC counterpart of `.router(...)`.
-        // May only be called once; see the `Server::grpc_routes` docs.
-        //
         // Optional: runs after graceful shutdown completes, right before
         // `serve()` returns. Close database pools, flush buffers, etc. here.
         .on_shutdown(async { println!("shutting down, running clean-up") })

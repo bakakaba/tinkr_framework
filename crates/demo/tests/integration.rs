@@ -102,47 +102,6 @@ async fn unmatched_path_is_http_404() {
     assert_eq!(status, 404, "unmatched paths should fall through to a 404");
 }
 
-/// A pre-built `tonic::service::Routes` merged via `grpc_routes` serves gRPC
-/// alongside HTTP routes on the same port.
-#[tokio::test]
-async fn grpc_routes_responds() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("failed to bind listener");
-    let addr = listener.local_addr().expect("failed to read local addr");
-
-    let routes = tonic::service::Routes::builder()
-        .add_service(GreeterServer::new(MyGreeter))
-        .to_owned()
-        .routes();
-
-    tokio::spawn(async move {
-        Server::new()
-            .route("/health", get(|| async { "ok" }))
-            .grpc_routes(routes)
-            .serve(listener)
-            .await
-            .expect("server error");
-    });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-    let (status, body) = http_get(addr, "/health").await;
-    assert_eq!(status, 200);
-    assert_eq!(body, "ok");
-
-    let mut client = GreeterClient::connect(format!("http://{addr}"))
-        .await
-        .expect("failed to connect gRPC client");
-    let reply = client
-        .say_hello(HelloRequest {
-            name: "routes".to_string(),
-        })
-        .await
-        .expect("gRPC call failed")
-        .into_inner();
-    assert_eq!(reply.message, "Hello routes!");
-}
-
 /// Minimal HTTP/1.1 GET helper returning `(status, body)`.
 async fn http_get(addr: SocketAddr, path: &str) -> (u16, String) {
     let client: Client<_, http_body_util::Empty<bytes_compat::Bytes>> =
