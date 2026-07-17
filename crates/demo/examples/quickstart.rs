@@ -23,7 +23,10 @@ use tinkr_framework::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("listening on http://0.0.0.0:8080 (HTTP + gRPC)");
+    // Load .env and set up RUST_LOG-filtered logging. Call exactly once.
+    tinkr_framework::init();
+
+    tracing::info!("listening on http://0.0.0.0:8080 (HTTP + gRPC)");
 
     // `/health` is built in; nothing to register for it.
     Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))

@@ -33,9 +33,9 @@ minimal Arguments sections, runnable doctests only.
 
 - All deps are declared in the root `[workspace.dependencies]`; crates use `{ workspace = true }`.
   Add new deps at the root, not per-crate.
-- Root re-exports of the crate's own items are deliberately minimal (`pub use server::Server`
-  only); prefer module-qualified paths (`bootstrap::init`, `utilities::new_id`) in docs and
-  examples. Dependencies that appear in the public API are re-exported (`axum` plus the
+- Root re-exports of the crate's own items are deliberately minimal (`Server` and `init`
+  only; the `bootstrap` module stays private). Use `tinkr_framework::init()` and prefer
+  module-qualified paths for everything else (`utilities::new_id`) in docs and examples. Dependencies that appear in the public API are re-exported (`axum` plus the
   flattened `Router`/`routing`, and `tonic` behind the `grpc` feature) so users build against
   the versions the framework supports — use these re-exports in docs and the demo instead of
   direct axum/tonic deps where possible.

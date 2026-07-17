@@ -44,6 +44,9 @@ const READ_ONLY: Status = Status::new("read_only", true);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load .env and set up RUST_LOG-filtered logging. Call exactly once.
+    tinkr_framework::init();
+
     // A pre-built Router. Build these anywhere (other modules, other
     // crates) and merge them in whole with `.router(...)`.
     let api = Router::new()
@@ -53,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route("/api/version", get(|| async { "demo 0.0.0" }));
 
-    println!("listening on http://127.0.0.1:8080 (HTTP + gRPC)");
+    tracing::info!("listening on http://127.0.0.1:8080 (HTTP + gRPC)");
 
     Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
         // Merge a whole router...
@@ -94,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         // Optional: runs after graceful shutdown completes, right before
         // `serve()` returns. Close database pools, flush buffers, etc. here.
-        .on_shutdown(async { println!("shutting down, running clean-up") })
+        .on_shutdown(async { tracing::info!("shutting down, running clean-up") })
         // `serve()` accepts several bind targets (port, IP, string, socket
         // address, pre-bound listener); see the `Server::serve` docs.
         .serve("127.0.0.1:8080")
