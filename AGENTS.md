@@ -25,14 +25,9 @@ Rust workspace with two crates: `crates/tinkr_framework` (the published library)
 
 ## Documentation
 
-- Code examples must be runnable doctests executed by `cargo test` — never `no_run`,
-  `ignore`, or untested code blocks (README included). If a flow cannot execute in a
-  doctest (e.g. `serve()` blocks on signals), reference the demo crate instead.
-- Demonstrate topics with full demos in `crates/demo/examples/`, not inline pseudo-code.
-- Keep docs to a useful overview; omit implementation detail unless required to use the API.
-- Single source of truth: never duplicate API specifics (tables, option lists) away from
-  the code they describe — copies drift.
-- Document options/features by how and why to use them, not their implementation.
+Documentation style rules live in the `documentation` skill
+(`.agents/skills/documentation/SKILL.md`) — purpose over implementation,
+minimal Arguments sections, runnable doctests only.
 
 ## Conventions
 
