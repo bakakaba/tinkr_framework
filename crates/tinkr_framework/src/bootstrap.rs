@@ -3,13 +3,15 @@
 use std::env;
 
 use dotenvy::dotenv;
+use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Bootstraps common resources used when running a service.
 ///
 /// Initializes:
 /// - Environment variables (from a `.env` file, if present)
-/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`])
+/// - Logging (filtered by `RUST_LOG` via [`EnvFilter`], defaulting to `info`
+///   when `RUST_LOG` is unset)
 ///
 /// The log output format is selected based on where the process is running:
 ///
@@ -23,11 +25,18 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 ///
 /// Panics if a global tracing subscriber is already set. Call this exactly
 /// once, at the start of the application.
+///
+/// Panics if `RUST_LOG` contains an invalid filter directive, so
+/// misconfiguration is surfaced at startup instead of being silently
+/// ignored.
 pub fn init() {
     // Load .env first so RUST_LOG from .env is picked up by the filter.
     dotenv().ok();
 
-    let filter = EnvFilter::from_default_env();
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()
+        .expect("invalid RUST_LOG environment variable");
 
     let is_deployed = env::var("KUBERNETES_SERVICE_HOST").is_ok() // Kubernetes
         || env::var("K_SERVICE").is_ok() // Cloud Run service

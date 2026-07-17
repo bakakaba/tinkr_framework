@@ -42,9 +42,11 @@ Both emit the same concrete `XxxServer<T>`, so registration is identical.
 ## Bootstrap
 
 Call `bootstrap::init()` first thing in `main`: it loads `.env` (if present)
-and initializes `RUST_LOG`-filtered logging, picking the output format for the
-environment (human-readable locally, structured for deployments). Call it
-**exactly once** — a second call panics.
+and initializes `RUST_LOG`-filtered logging (defaulting to `info` when
+`RUST_LOG` is unset), picking the output format for the environment
+(human-readable locally, structured for deployments). Call it
+**exactly once** — a second call panics, as does an invalid `RUST_LOG`
+value so misconfiguration is caught at startup.
 
 ## Utilities
 
