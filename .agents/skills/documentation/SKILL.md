@@ -10,7 +10,7 @@ implementation.
 
 ## Rules
 
-1. **Purpose first.** Open with one line saying what the item is for.
+1. **Purpose first.** Open with saying what the item is for.
 2. **No implementation detail in doc comments.** Internal types, dependency
    crate names, algorithms, and design rationale don't belong in `///`/`//!`.
    Rationale useful to maintainers goes in regular `//` comments instead.
