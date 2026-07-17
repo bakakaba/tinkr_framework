@@ -14,10 +14,10 @@ use ulid::Ulid;
 /// ```
 pub fn new_id(prefix: &str) -> String {
     if prefix.is_empty() {
-        return Ulid::r#gen().to_string();
+        return Ulid::generate().to_string();
     }
 
-    format!("{}_{}", prefix, Ulid::r#gen())
+    format!("{}_{}", prefix, Ulid::generate())
 }
 
 #[cfg(test)]
