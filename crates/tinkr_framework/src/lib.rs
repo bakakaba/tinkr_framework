@@ -12,6 +12,7 @@
 
 mod bootstrap;
 pub mod errors;
+pub mod health;
 pub mod server;
 pub mod utilities;
 

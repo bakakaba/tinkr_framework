@@ -9,7 +9,9 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     /// The server was built without any routes (neither HTTP nor gRPC).
-    #[error("no routes configured: register at least one HTTP route or gRPC service")]
+    #[error(
+        "no routes configured: register at least one HTTP route, gRPC service, or health check"
+    )]
     NoRoutes,
 
     /// The string passed to [`crate::Server::serve`] is neither a valid

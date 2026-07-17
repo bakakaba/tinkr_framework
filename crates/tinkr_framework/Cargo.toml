@@ -19,12 +19,16 @@ thiserror = { workspace = true }
 dotenvy = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
 ulid = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
-axum = { workspace = true, features = ["http2"] }
+axum = { workspace = true, features = ["http2", "json"] }
 tonic = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing-stackdriver = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
