@@ -30,6 +30,11 @@ jobs:
       - uses: ./.github/actions/setup
       - name: cargo test
         run: cargo test --workspace
+      - name: Config schema is up to date
+        run: |
+          cargo run -p demo --example gen_schema
+          git diff --exit-code
+        working-directory: crates/demo
 
   features:
     name: Feature matrix
@@ -72,4 +77,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - name: cargo publish --dry-run
-        run: cargo publish -p tinkr_framework --dry-run
+        # --workspace verifies the publishable crates as a set, in dependency
+        # order, so unpublished-yet interdependencies still resolve.
+        run: cargo publish --workspace --dry-run

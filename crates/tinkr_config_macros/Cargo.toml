@@ -1,0 +1,18 @@
+[package]
+name = "tinkr_config_macros"
+edition.workspace = true
+version = "0.1.1"
+description = "Derive macro for tinkr_config. Use through the tinkr_config crate."
+readme.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/tinkr_config_macros"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { workspace = true }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+proc-macro-crate = { workspace = true }

@@ -14,10 +14,23 @@ grpc = ["dep:tonic", "dep:tower", "dep:http"]
 gcp = ["dep:tracing-stackdriver"]
 
 [dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal"] }
+tinkr_config = { path = "../tinkr_config", version = "0.1.1" }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "signal",
+    "sync",
+    "time",
+] }
 thiserror = { workspace = true }
-dotenvy = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
+socket2 = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
 ulid = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
@@ -29,6 +42,7 @@ tracing-stackdriver = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+libc = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

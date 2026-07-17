@@ -1,0 +1,17 @@
+[package]
+name = "tinkr_config"
+edition.workspace = true
+version = "0.1.1"
+description = "Layered, attribute-driven configuration: environment variables over config.toml over defaults, with per-field provenance and JSON Schema generation."
+readme.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/tinkr_config"
+
+[dependencies]
+tinkr_config_macros = { path = "../tinkr_config_macros", version = "=0.1.1" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+dotenvy = { workspace = true }
+thiserror = { workspace = true }

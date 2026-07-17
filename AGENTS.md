@@ -1,7 +1,9 @@
 # AGENTS.md
 
-Rust workspace with two crates: `crates/tinkr_framework` (the published library) and
-`crates/demo` (`publish = false`, exercises the framework end-to-end).
+Rust workspace with four crates: `crates/tinkr_framework` (the published library),
+`crates/tinkr_config` + `crates/tinkr_config_macros` (published; layered configuration and
+its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
+(`publish = false`, exercises the framework end-to-end).
 
 ## Commands
 
@@ -31,23 +33,48 @@ minimal Arguments sections, runnable doctests only.
 
 ## Conventions
 
-- All deps are declared in the root `[workspace.dependencies]`; crates use `{ workspace = true }`.
-  Add new deps at the root, not per-crate.
-- Root re-exports of the crate's own items are deliberately minimal (`Server` and `init`
-  only; the `bootstrap` module stays private). Use `tinkr_framework::init()` and prefer
-  module-qualified paths for everything else (`utilities::new_id`) in docs and examples. Dependencies that appear in the public API are re-exported (`axum` plus the
-  flattened `Router`/`routing`, and `tonic` behind the `grpc` feature) so users build against
-  the versions the framework supports — use these re-exports in docs and the demo instead of
-  direct axum/tonic deps where possible.
-- `bootstrap::init` must stay a single function with no config parameters (per maintainer);
-  it intentionally panics on double init.
-- Tests that set the global tracing subscriber go in their own integration-test file
-  (own process), e.g. `tests/bootstrap_double_init.rs`.
+- External deps are declared in the root `[workspace.dependencies]`; crates use
+  `{ workspace = true }`. Add new deps at the root, not per-crate. **Exception:** internal
+  crate deps that appear in published manifests (`tinkr_config` in the framework,
+  `tinkr_config_macros` in `tinkr_config`) declare `{ path, version }` in the consuming
+  crate's Cargo.toml — release-please only bumps version requirements there, never in
+  `[workspace.dependencies]`.
+- Root re-exports of the crate's own items are deliberately minimal (`Server`, the `init!`
+  macro, and the `config` re-export; the `bootstrap` module stays private). Prefer
+  module-qualified paths for everything else (`utilities::new_id`) in docs and examples.
+  Dependencies that appear in the public API are re-exported (`tinkr_config` as `config`,
+  `axum` plus the flattened `Router`/`routing`, and `tonic` behind the `grpc` feature) so
+  users build against the versions the framework supports — use these re-exports in docs
+  and the demo instead of direct deps where possible.
+- `init!` is the single entry point: it loads the configuration (returning
+  `&'static Config<T>`; `init!()` loads `Config<()>`) and sets up logging, and must be
+  called before building a `Server` (`Server::new` panics otherwise). It intentionally
+  panics on double init. The `Server` reads `name`/`version`/`port`/`shutdown_timeout`
+  from the loaded config via `config::get::<()>()` — there is deliberately no builder
+  method or argument to override them; `bind()` (repeatable) is the only serve-target
+  knob, and calling it replaces the implicit dual-stack `{port}` bind.
+- Tests that set the global tracing subscriber, mutate environment variables, load the
+  global configuration, or change the working directory go in their own integration-test
+  file (own process), e.g. `tests/bootstrap_double_init.rs`, `tests/config_load.rs`.
+- Configuration (`tinkr_config`): consumers derive `Configurable`; precedence is env var >
+  `config.toml` (CWD) > `#[config(default)]`. `load!`/`get` are the global path (frozen,
+  panic on double-load/unloaded-get, matching `init`); `parse` is the test/tooling seam.
+  Top-level keys `port`, `environment`, `shutdown_timeout`, `name`, `version` are reserved
+  for the provided fields. The derive resolves its runtime paths via `proc-macro-crate`
+  (direct `tinkr_config` dep or the `tinkr_framework::config` re-export) — don't use the
+  derive inside `tinkr_config` itself (the provided fields are hand-written for this
+  reason).
+- The demo's `config.schema.json` is generated (`just schema`) and checked in — CI fails
+  if the committed schema drifts from the config structs. Never edit it by hand.
 - The demo's gRPC code is generated from `crates/demo/proto/hello.proto` with `buf generate`
   (remote BSR plugins, versions pinned in `crates/demo/buf.gen.yaml`) and checked in under
   `crates/demo/src/gen/`. After editing the proto, run `just gen` (requires the `buf` CLI and
   network access) and commit the result — CI fails if the generated code drifts. Never edit
   `src/gen/` by hand.
 - Releases are automated: `release-please` opens a release PR from conventional commits on
-  `main`; merging it tags the release and publishes `tinkr_framework` to crates.io.
+  `main` (all crates version-locked via `linked-versions`); merging it tags the release
+  (single `v*` tag + GitHub release, owned by `tinkr_framework`) and publishes the three
+  library crates with `cargo publish --workspace` in dependency order. `tinkr_config` and
+  `tinkr_config_macros` keep their own `CHANGELOG.md` (entries assigned by touched paths);
+  only `demo` skips changelogs.
 - Commit messages: conventional commits (`feat:`, `refactor:`, `chore:`).

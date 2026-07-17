@@ -23,15 +23,15 @@ use tinkr_framework::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load .env and set up RUST_LOG-filtered logging. Call exactly once.
-    tinkr_framework::init();
+    // Load .env + configuration (env vars > config.toml > defaults) and set
+    // up RUST_LOG-filtered logging. Call exactly once.
+    tinkr_framework::init!()?;
 
-    tracing::info!("listening on http://0.0.0.0:8080 (HTTP + gRPC)");
-
-    // `/health` is built in; nothing to register for it.
-    Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+    // `/health` is built in; nothing to register for it. serve() listens on
+    // the configured port (default 8080) on both IPv4 and IPv6.
+    Server::new()
         .grpc_service(GreeterServer::new(MyGreeter))
-        .serve(8080)
+        .serve()
         .await?;
 
     Ok(())

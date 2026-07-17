@@ -15,3 +15,7 @@ test:
 # Regenerate the demo's gRPC code from proto/hello.proto (requires buf)
 gen:
     cd crates/demo && buf generate
+
+# Regenerate the demo's config.schema.json from its config structs
+schema:
+    cd crates/demo && cargo run --example gen_schema

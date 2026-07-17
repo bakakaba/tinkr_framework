@@ -1,0 +1,41 @@
+#:schema ./config.schema.json
+
+# Configuration for the demo service.
+#
+# Generated with `tinkr_framework::config::template::<AppConfig>()`; a few
+# values are uncommented to demonstrate the file layer. Environment
+# variables outrank this file; commented entries fall back to their
+# defaults.
+
+# TCP port the server listens on. (env: PORT)
+port = 8081
+
+# Deployment environment name, e.g. "development" or "production". (env: ENVIRONMENT)
+#environment = "development"
+
+# Graceful shutdown grace period, in seconds. (env: SHUTDOWN_TIMEOUT)
+#shutdown_timeout = 30
+
+# Service name. Defaults to the Cargo package name. (env: SERVICE_NAME)
+#name = ""
+
+# Service version. Defaults to the Cargo package version. (env: SERVICE_VERSION)
+#version = ""
+
+# Greeting returned by `GET /greeting`. (env: GREETING)
+greeting = "Hello from config.toml!"
+
+# Number of worker tasks. (env: WORKERS)
+#workers = 4
+
+# Database connection URL; redacted in the startup readout. (env: DATABASE_URL)
+#database_url = ""
+
+# Cache tuning.
+[cache]
+
+# Entry time-to-live, in seconds. (env: CACHE_TTL)
+ttl = 600
+
+# Maximum number of cached entries.
+#capacity = 1024
