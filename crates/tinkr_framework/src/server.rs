@@ -1,29 +1,23 @@
-//! HTTP + gRPC server built on a single, multiplexed port.
+//! HTTP + gRPC server built on multiplexed ports.
 //!
 //! [`Server`] serves an [`axum::Router`] (HTTP/REST) and any number of tonic
-//! gRPC services on one listener, telling the two kinds of traffic apart
-//! automatically.
+//! gRPC services on one or more listeners, telling the two kinds of traffic
+//! apart automatically. Identity, default port, and shutdown grace period
+//! come from the loaded configuration (see [`crate::init!`]).
 //!
-//! Every server exposes a built-in `GET /health` endpoint (see
-//! [`health`]); the `/health` path is reserved.
-//!
-//! [`Server::serve`] runs until the process receives `ctrl-c` (or `SIGTERM` on
-//! unix), then shuts down gracefully and runs the optional
-//! [`Server::on_shutdown`] clean-up hook.
+//! Every server exposes a built-in `GET /health` endpoint (see [`health`]);
+//! the `/health` path is reserved.
 
-use std::borrow::Cow;
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
+use tokio::task::JoinSet;
 
 use crate::errors::{Error, Result};
 use crate::health::{self, Health, Status};
-
-/// The port used when a [`ServeTarget`] specifies only an address.
-const DEFAULT_PORT: u16 = 8080;
 
 type ShutdownHook = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
@@ -37,15 +31,17 @@ type HealthCheck =
 /// ```
 /// use tinkr_framework::{Server, routing::get};
 ///
-/// let server = Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-///     .route("/hello", get(|| async { "hello" }));
+/// tinkr_framework::init!()?;
+///
+/// let server = Server::new().route("/hello", get(|| async { "hello" }));
+/// # Ok::<(), tinkr_framework::errors::Error>(())
 /// ```
 ///
-/// Follow with `.serve(...)` to bind and run until shutdown; see the demo
+/// Follow with `.serve()` to bind and run until shutdown; see the demo
 /// crate (`crates/demo/examples/`) for complete programs.
 pub struct Server {
-    service: Cow<'static, str>,
-    version: Cow<'static, str>,
+    service: &'static str,
+    version: &'static str,
     router: axum::Router,
     has_http: bool,
     // gRPC routes accumulated *without* tonic's `unimplemented` fallback, so
@@ -56,6 +52,7 @@ pub struct Server {
     has_grpc: bool,
     health_check: Option<HealthCheck>,
     shutdown_hook: Option<ShutdownHook>,
+    binds: Vec<BindSpec>,
 }
 
 impl std::fmt::Debug for Server {
@@ -68,25 +65,28 @@ impl std::fmt::Debug for Server {
         s.field("has_grpc", &self.has_grpc);
         s.field("has_health_check", &self.health_check.is_some());
         s.field("has_shutdown_hook", &self.shutdown_hook.is_some());
+        s.field("binds", &self.binds.len());
         s.finish_non_exhaustive()
     }
 }
 
 impl Server {
-    /// Create a new, empty server identified by service name and version,
-    /// which the built-in [`/health` endpoint](crate::health) reports.
+    /// Create a new, empty server. The built-in
+    /// [`/health` endpoint](crate::health) reports the `name` and `version`
+    /// from the loaded configuration.
     ///
-    /// # Example
+    /// # Panics
     ///
-    /// ```
-    /// use tinkr_framework::Server;
-    ///
-    /// let server = Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    /// ```
-    pub fn new(name: impl Into<Cow<'static, str>>, version: impl Into<Cow<'static, str>>) -> Self {
+    /// Panics when the configuration is not loaded — call [`crate::init!`]
+    /// first.
+    // Not `Default`: construction requires the loaded configuration, and a
+    // panicking `default()` would be misleading.
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let base = tinkr_config::get::<()>();
         Self {
-            service: name.into(),
-            version: version.into(),
+            service: base.name.as_str(),
+            version: base.version.as_str(),
             router: axum::Router::new(),
             has_http: false,
             // `Routes::from(axum::Router)` does NOT attach tonic's
@@ -98,6 +98,7 @@ impl Server {
             has_grpc: false,
             health_check: None,
             shutdown_hook: None,
+            binds: Vec::new(),
         }
     }
 
@@ -156,13 +157,15 @@ impl Server {
     /// use tinkr_framework::Server;
     /// use tinkr_framework::health::{Check, Health, Status};
     ///
-    /// let server = Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-    ///     .health(|| async {
-    ///         Health {
-    ///             status: Status::OK,
-    ///             checks: vec![Check::new("database", Status::OK)],
-    ///         }
-    ///     });
+    /// tinkr_framework::init!()?;
+    ///
+    /// let server = Server::new().health(|| async {
+    ///     Health {
+    ///         status: Status::OK,
+    ///         checks: vec![Check::new("database", Status::OK)],
+    ///     }
+    /// });
+    /// # Ok::<(), tinkr_framework::errors::Error>(())
     /// ```
     pub fn health<F, Fut>(mut self, check: F) -> Self
     where
@@ -176,35 +179,136 @@ impl Server {
     /// Register a clean-up hook that runs after graceful shutdown completes,
     /// just before [`serve`](Self::serve) returns.
     ///
-    /// Use this to close database pools, flush buffers, etc.
+    /// Use this to close database pools, flush buffers, etc. The hook shares
+    /// the configured `shutdown_timeout` grace period with connection
+    /// draining.
     pub fn on_shutdown(mut self, hook: impl Future<Output = ()> + Send + 'static) -> Self {
         self.shutdown_hook = Some(Box::pin(hook));
         self
     }
 
-    /// Bind to `target` and serve until the process receives `ctrl-c` (or
-    /// `SIGTERM` on unix), then shut down gracefully and run the
-    /// [`on_shutdown`](Self::on_shutdown) hook, if any.
+    /// Add a bind address. Call repeatedly to serve on multiple addresses.
+    ///
+    /// Calling `bind` at least once **replaces** [`serve`](Self::serve)'s
+    /// implicit configured-port bind. To keep the configured port alongside
+    /// extra addresses, bind it explicitly:
+    ///
+    /// ```
+    /// let cfg = tinkr_framework::init!()?;
+    ///
+    /// let server = tinkr_framework::Server::new()
+    ///     // Explicit binds replace the configured default...
+    ///     .bind("127.0.0.1:9090")
+    ///     // ...so re-add the configured port if you still want it.
+    ///     .bind(cfg.port);
+    /// # Ok::<(), tinkr_framework::errors::Error>(())
+    /// ```
     ///
     /// # Arguments
     ///
-    /// - `target` — a port (`8080`), an address (`[127, 0, 0, 1]`,
-    ///   `"127.0.0.1"`, `"127.0.0.1:3000"`, a [`SocketAddr`]), or a pre-bound
-    ///   [`tokio::net::TcpListener`] (useful in tests: bind port `0` and read
-    ///   `local_addr()` before serving)
-    pub async fn serve(mut self, target: impl ServeTarget) -> Result<()> {
-        let hook = self.shutdown_hook.take();
-        let app = self.into_app()?;
-        let listener = target.into_listener().await?;
+    /// - `target` — a port (`8080`; binds both IPv4 and IPv6, best effort),
+    ///   an address (`[127, 0, 0, 1]`, `"127.0.0.1"`, `"127.0.0.1:3000"`, a
+    ///   [`SocketAddr`]; bare addresses get the configured port), or a
+    ///   pre-bound [`tokio::net::TcpListener`] (useful in tests: bind port
+    ///   `0` and read `local_addr()` before serving)
+    pub fn bind(mut self, target: impl BindTarget) -> Self {
+        self.binds.push(target.into_spec());
+        self
+    }
 
-        axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal())
-            .await?;
+    /// Bind and serve until the process receives `ctrl-c` (or `SIGTERM` on
+    /// unix), then shut down gracefully and run the
+    /// [`on_shutdown`](Self::on_shutdown) hook, if any. Draining and the
+    /// hook are abandoned if they outlast the configured `shutdown_timeout`.
+    ///
+    /// Without any [`bind`](Self::bind) calls this listens on the configured
+    /// `port` on all IPv4 and IPv6 addresses (best effort per family);
+    /// otherwise exactly the bound addresses are served. The resolved
+    /// addresses are logged at startup.
+    pub async fn serve(mut self) -> Result<()> {
+        let base = tinkr_config::get::<()>();
+        let hook = self.shutdown_hook.take();
+        let mut binds = std::mem::take(&mut self.binds);
+        if binds.is_empty() {
+            binds.push(BindSpec::DualStackPort(base.port));
+        }
+        let app = self.into_app()?;
+
+        let listeners = resolve_binds(binds, base.port).await?;
+        let addresses = listeners
+            .iter()
+            .filter_map(|listener| listener.local_addr().ok())
+            .map(|addr| addr.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        tracing::info!("serving on {addresses}");
+
+        // Signal receipt is observed separately so the shutdown deadline
+        // starts at the signal, not at connection-drain completion, and is
+        // fanned out to every listener's serve loop.
+        let (signal_tx, signal_rx) = tokio::sync::oneshot::channel::<()>();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+        tokio::spawn(async move {
+            shutdown_signal().await;
+            let _ = signal_tx.send(());
+            let _ = shutdown_tx.send(());
+        });
+
+        let mut servers = JoinSet::new();
+        for listener in listeners {
+            let app = app.clone();
+            let mut shutdown = shutdown_rx.clone();
+            servers.spawn(async move {
+                axum::serve(listener, app)
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown.changed().await;
+                    })
+                    .await
+            });
+        }
+        drop(shutdown_rx);
+
+        enum Event {
+            Signal,
+            Serving(Option<std::result::Result<std::io::Result<()>, tokio::task::JoinError>>),
+        }
+
+        let mut signal_rx = std::pin::pin!(signal_rx);
+        loop {
+            let event = tokio::select! {
+                _ = signal_rx.as_mut() => Event::Signal,
+                joined = servers.join_next() => Event::Serving(joined),
+            };
+            match event {
+                // All listeners finished without a shutdown signal.
+                Event::Serving(None) => break,
+                // A listener ended early: propagate errors, keep draining.
+                Event::Serving(Some(joined)) => joined.expect("server task panicked")?,
+                Event::Signal => {
+                    let drain = async {
+                        while let Some(joined) = servers.join_next().await {
+                            joined.expect("server task panicked")?;
+                        }
+                        if let Some(hook) = hook {
+                            hook.await;
+                        }
+                        Ok::<_, Error>(())
+                    };
+                    match tokio::time::timeout(base.shutdown_timeout, drain).await {
+                        Ok(result) => result?,
+                        Err(_) => tracing::warn!(
+                            timeout_secs = base.shutdown_timeout.as_secs(),
+                            "graceful shutdown timed out; exiting with work still pending"
+                        ),
+                    }
+                    return Ok(());
+                }
+            }
+        }
 
         if let Some(hook) = hook {
             hook.await;
         }
-
         Ok(())
     }
 
@@ -231,8 +335,6 @@ impl Server {
         app = app.route(
             "/health",
             axum::routing::get(move || {
-                let service = service.clone();
-                let version = version.clone();
                 let check = check.clone();
                 async move {
                     let uptime = started.elapsed();
@@ -243,7 +345,7 @@ impl Server {
                         Some(check) => check().await,
                         None => Health::new(Status::OK),
                     };
-                    health::response(&service, &version, uptime, evaluating.elapsed(), &health)
+                    health::response(service, version, uptime, evaluating.elapsed(), &health)
                 }
             }),
         );
@@ -283,6 +385,77 @@ async fn shutdown_signal() {
     }
 }
 
+/// A pending bind, resolved into listeners when `serve()` runs.
+// `pub` only because it appears in the sealed `BindTarget::into_spec`
+// signature; not constructible or nameable through the documented API.
+#[doc(hidden)]
+#[derive(Debug)]
+pub enum BindSpec {
+    /// Bind the port on all IPv4 and IPv6 addresses, best effort per family.
+    DualStackPort(u16),
+    /// Bind this exact socket address.
+    Addr(SocketAddr),
+    /// Bind this address, using the configured port.
+    Ip(IpAddr),
+    /// Parse and bind at serve time: `ip:port` or a bare `ip`.
+    Str(String),
+    /// Use a pre-bound listener as-is.
+    Listener(TcpListener),
+}
+
+async fn resolve_binds(binds: Vec<BindSpec>, config_port: u16) -> Result<Vec<TcpListener>> {
+    let mut listeners = Vec::new();
+    for spec in binds {
+        match spec {
+            BindSpec::Listener(listener) => listeners.push(listener),
+            BindSpec::Addr(addr) => listeners.push(TcpListener::bind(addr).await?),
+            BindSpec::Ip(ip) => {
+                listeners.push(TcpListener::bind(SocketAddr::from((ip, config_port))).await?)
+            }
+            BindSpec::Str(s) => {
+                // Accept both "ip:port" and bare "ip" (which gets the
+                // configured port).
+                let addr = if let Ok(addr) = s.parse::<SocketAddr>() {
+                    addr
+                } else if let Ok(ip) = s.parse::<IpAddr>() {
+                    SocketAddr::from((ip, config_port))
+                } else {
+                    return Err(Error::InvalidAddress(s));
+                };
+                listeners.push(TcpListener::bind(addr).await?);
+            }
+            BindSpec::DualStackPort(port) => {
+                // Best effort per address family: environments without one
+                // of the stacks get the other, silently.
+                let v4 = TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port))).await;
+                let v6 = bind_v6only(port);
+                match (v4, v6) {
+                    (Err(e), Err(_)) => return Err(e.into()),
+                    (v4, v6) => {
+                        listeners.extend(v4);
+                        listeners.extend(v6);
+                    }
+                }
+            }
+        }
+    }
+    Ok(listeners)
+}
+
+/// Binds `[::]:{port}` accepting IPv6 connections only.
+// IPV6_V6ONLY is set so this socket can coexist with the separate IPv4
+// listener on the same port; without it the two binds conflict on Linux.
+fn bind_v6only(port: u16) -> std::io::Result<TcpListener> {
+    use socket2::{Domain, Protocol, Socket, Type};
+
+    let socket = Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP))?;
+    socket.set_only_v6(true)?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)).into())?;
+    socket.listen(1024)?;
+    TcpListener::from_std(socket.into())
+}
+
 mod sealed {
     pub trait Sealed {}
 
@@ -294,59 +467,86 @@ mod sealed {
     impl Sealed for tokio::net::TcpListener {}
 }
 
-/// A bind target accepted by [`Server::serve`].
+/// A bind target accepted by [`Server::bind`].
 ///
-/// Implemented for ports (`u16`), addresses ([`IpAddr`], `[u8; 4]`, `&str`),
-/// [`SocketAddr`], and pre-bound [`tokio::net::TcpListener`]s. This trait is
-/// sealed and cannot be implemented outside this crate.
-#[allow(async_fn_in_trait)]
-pub trait ServeTarget: sealed::Sealed {
-    /// Resolve this target into a bound listener.
+/// Implemented for ports (`u16`; both IPv4 and IPv6), addresses ([`IpAddr`],
+/// `[u8; 4]`, `&str`), [`SocketAddr`], and pre-bound
+/// [`tokio::net::TcpListener`]s. This trait is sealed and cannot be
+/// implemented outside this crate.
+pub trait BindTarget: sealed::Sealed {
+    /// Convert this target into a pending bind.
     #[doc(hidden)]
-    async fn into_listener(self) -> Result<TcpListener>;
+    fn into_spec(self) -> BindSpec;
 }
 
-impl ServeTarget for u16 {
-    async fn into_listener(self) -> Result<TcpListener> {
-        let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, self));
-        Ok(TcpListener::bind(addr).await?)
+impl BindTarget for u16 {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::DualStackPort(self)
     }
 }
 
-impl ServeTarget for IpAddr {
-    async fn into_listener(self) -> Result<TcpListener> {
-        Ok(TcpListener::bind(SocketAddr::from((self, DEFAULT_PORT))).await?)
+impl BindTarget for IpAddr {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::Ip(self)
     }
 }
 
-impl ServeTarget for [u8; 4] {
-    async fn into_listener(self) -> Result<TcpListener> {
-        IpAddr::from(self).into_listener().await
+impl BindTarget for [u8; 4] {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::Ip(IpAddr::from(self))
     }
 }
 
-impl ServeTarget for &str {
-    async fn into_listener(self) -> Result<TcpListener> {
-        // Accept both "ip:port" and bare "ip" (which gets the default port).
-        let addr = if let Ok(addr) = self.parse::<SocketAddr>() {
-            addr
-        } else if let Ok(ip) = self.parse::<IpAddr>() {
-            SocketAddr::from((ip, DEFAULT_PORT))
-        } else {
-            return Err(Error::InvalidAddress(self.to_string()));
-        };
-        Ok(TcpListener::bind(addr).await?)
+impl BindTarget for &str {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::Str(self.to_string())
     }
 }
 
-impl ServeTarget for SocketAddr {
-    async fn into_listener(self) -> Result<TcpListener> {
-        Ok(TcpListener::bind(self).await?)
+impl BindTarget for SocketAddr {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::Addr(self)
     }
 }
 
-impl ServeTarget for TcpListener {
-    async fn into_listener(self) -> Result<TcpListener> {
-        Ok(self)
+impl BindTarget for TcpListener {
+    fn into_spec(self) -> BindSpec {
+        BindSpec::Listener(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn dual_stack_port_binds_best_effort() {
+        let listeners = resolve_binds(vec![BindSpec::DualStackPort(0)], 0)
+            .await
+            .unwrap();
+        assert!(!listeners.is_empty(), "at least one family must bind");
+        assert!(listeners.len() <= 2);
+        let addrs: Vec<SocketAddr> = listeners.iter().map(|l| l.local_addr().unwrap()).collect();
+        assert!(addrs.iter().any(|a| a.is_ipv4()), "IPv4 always available");
+        if listeners.len() == 2 {
+            assert!(addrs.iter().any(|a| a.is_ipv6()));
+        }
+    }
+
+    #[tokio::test]
+    async fn bare_ip_gets_config_port() {
+        let listeners = resolve_binds(vec![BindSpec::Str("127.0.0.1".into())], 0)
+            .await
+            .unwrap();
+        let addr = listeners[0].local_addr().unwrap();
+        assert_eq!(addr.ip(), IpAddr::from([127, 0, 0, 1]));
+    }
+
+    #[tokio::test]
+    async fn invalid_address_string_errors() {
+        let err = resolve_binds(vec![BindSpec::Str("not-an-address".into())], 0)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::InvalidAddress(_)));
     }
 }

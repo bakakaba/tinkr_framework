@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Configuration for the demo service.\n\nApplication fields defined here compose with the framework-provided ones\n(`port`, `environment`, `shutdown_timeout`, `name`, `version`); all of\nthem live at the top level of `config.toml` and can be overridden by\ntheir environment variables.",
+  "properties": {
+    "cache": {
+      "additionalProperties": false,
+      "description": "Cache tuning.",
+      "properties": {
+        "capacity": {
+          "default": 1024,
+          "description": "Maximum number of cached entries.",
+          "type": "integer"
+        },
+        "ttl": {
+          "default": 300,
+          "description": "Entry time-to-live, in seconds. (env: CACHE_TTL)",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "database_url": {
+      "description": "Database connection URL; redacted in the startup readout. (env: DATABASE_URL)",
+      "type": "string"
+    },
+    "environment": {
+      "default": "development",
+      "description": "Deployment environment name, e.g. \"development\" or \"production\". (env: ENVIRONMENT)",
+      "type": "string"
+    },
+    "greeting": {
+      "default": "Hello from tinkr_config!",
+      "description": "Greeting returned by `GET /greeting`. (env: GREETING)",
+      "type": "string"
+    },
+    "name": {
+      "description": "Service name. Defaults to the Cargo package name. (env: SERVICE_NAME)",
+      "type": "string"
+    },
+    "port": {
+      "default": 8080,
+      "description": "TCP port the server listens on. (env: PORT)",
+      "type": "integer"
+    },
+    "shutdown_timeout": {
+      "default": 30,
+      "description": "Graceful shutdown grace period, in seconds. (env: SHUTDOWN_TIMEOUT)",
+      "type": "integer"
+    },
+    "version": {
+      "description": "Service version. Defaults to the Cargo package version. (env: SERVICE_VERSION)",
+      "type": "string"
+    },
+    "workers": {
+      "default": 4,
+      "description": "Number of worker tasks. (env: WORKERS)",
+      "type": "integer"
+    }
+  },
+  "title": "AppConfig",
+  "type": "object"
+}

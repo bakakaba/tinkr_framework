@@ -1,11 +1,11 @@
-//! Verifies that calling `bootstrap::init` twice panics.
+//! Verifies that calling `init!` twice panics.
 //!
-//! Kept in its own integration test binary because initializing the global
-//! tracing subscriber affects the whole process.
+//! Kept in its own integration test binary because the loaded configuration
+//! and the global tracing subscriber affect the whole process.
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "configuration already loaded")]
 fn double_init_panics() {
-    tinkr_framework::init();
-    tinkr_framework::init();
+    let _ = tinkr_framework::init!();
+    let _ = tinkr_framework::init!();
 }

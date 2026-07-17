@@ -2,35 +2,22 @@
 
 use std::env;
 
-use dotenvy::dotenv;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Bootstraps common resources used when running a service.
-///
-/// Initializes:
-/// - Environment variables (from a `.env` file, if present)
-/// - Logging (filtered by `RUST_LOG`, defaulting to `info` when unset)
-///
-/// The log output format is selected based on where the process is running:
-///
-/// - **Local** (default): human-readable output.
-/// - **Deployed** (Kubernetes or Cloud Run, detected via
-///   `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or `CLOUD_RUN_JOB`): structured
-///   JSON output, or the Google Cloud Logging format with the `gcp` feature
-///   enabled.
-///
-/// # Panics
-///
-/// Panics if a global tracing subscriber is already set. Call this exactly
-/// once, at the start of the application.
-///
-/// Panics if `RUST_LOG` contains an invalid filter directive, so
-/// misconfiguration is surfaced at startup instead of being silently
-/// ignored.
-pub fn init() {
-    // Load .env first so RUST_LOG from .env is picked up by the filter.
-    dotenv().ok();
+use crate::errors::Result;
+
+/// Implementation of [`crate::init!`]; call the macro instead, which fills
+/// in `name` and `version` from the calling crate's Cargo package.
+#[doc(hidden)]
+pub fn init_with<T>(name: &str, version: &str) -> Result<&'static tinkr_config::Config<T>>
+where
+    T: tinkr_config::Configurable + Send + Sync + 'static,
+{
+    // Load the configuration first: it loads .env, so RUST_LOG set there is
+    // picked up by the filter below. Errors are returned before logging is
+    // available.
+    let config = tinkr_config::load_with::<T>(name, version)?;
 
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
@@ -45,12 +32,14 @@ pub fn init() {
 
     if !is_deployed {
         registry.with(fmt::layer()).init();
-        return;
+    } else {
+        #[cfg(feature = "gcp")]
+        registry.with(tracing_stackdriver::layer()).init();
+
+        #[cfg(not(feature = "gcp"))]
+        registry.with(fmt::layer().json()).init();
     }
 
-    #[cfg(feature = "gcp")]
-    registry.with(tracing_stackdriver::layer()).init();
-
-    #[cfg(not(feature = "gcp"))]
-    registry.with(fmt::layer().json()).init();
+    tracing::debug!("configuration sources:\n{}", config.sources());
+    Ok(config)
 }

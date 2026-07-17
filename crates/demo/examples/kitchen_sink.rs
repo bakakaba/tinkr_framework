@@ -8,7 +8,10 @@
 //! - customizing the built-in `/health` endpoint with `.health(...)`,
 //!   including consumer-defined statuses
 //! - a graceful-shutdown clean-up hook with `.on_shutdown(...)`
-//! - the flexible bind targets accepted by `.serve(...)`
+//! - serving multiple addresses with `.bind(...)`
+//!
+//! Configuration loading has its own example (`examples/config.rs`); the
+//! shutdown grace period and the default port come from the configuration.
 //!
 //! Run with:
 //!
@@ -16,12 +19,13 @@
 //! cargo run -p demo --example kitchen_sink
 //! ```
 //!
-//! Then, in another shell:
+//! Then, in another shell (the same routes are also served on the extra
+//! loopback bind, 127.0.0.1:9090):
 //!
 //! ```sh
 //! curl http://127.0.0.1:8080/health            # -> {"service":"demo",...,"checks":[...]}
 //! curl http://127.0.0.1:8080/api/hello         # -> hello from the merged router
-//! curl http://127.0.0.1:8080/api/version       # -> demo 0.0.0
+//! curl http://127.0.0.1:9090/api/version       # -> demo 0.0.0
 //! grpcurl -plaintext -d '{"name":"world"}' \
 //!     127.0.0.1:8080 hello.Greeter/SayHello     # -> {"message":"Hello world!"}
 //! ```
@@ -44,8 +48,9 @@ const READ_ONLY: Status = Status::new("read_only", true);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load .env and set up RUST_LOG-filtered logging. Call exactly once.
-    tinkr_framework::init();
+    // Load .env + configuration and set up RUST_LOG-filtered logging. Call
+    // exactly once, before building any Server.
+    let cfg = tinkr_framework::init!()?;
 
     // A pre-built Router. Build these anywhere (other modules, other
     // crates) and merge them in whole with `.router(...)`.
@@ -56,9 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route("/api/version", get(|| async { "demo 0.0.0" }));
 
-    tracing::info!("listening on http://127.0.0.1:8080 (HTTP + gRPC)");
-
-    Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+    Server::new()
         // Merge a whole router...
         .router(api)
         // ...and/or add individual routes; both styles compose freely.
@@ -96,11 +99,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         // Optional: runs after graceful shutdown completes, right before
-        // `serve()` returns. Close database pools, flush buffers, etc. here.
+        // `serve()` returns. Close database pools, flush buffers, etc. here;
+        // draining + this hook share the configured `shutdown_timeout`.
         .on_shutdown(async { tracing::info!("shutting down, running clean-up") })
-        // `serve()` accepts several bind targets (port, IP, string, socket
-        // address, pre-bound listener); see the `Server::serve` docs.
-        .serve("127.0.0.1:8080")
+        // Optional: without any `.bind(...)` calls, `serve()` listens on the
+        // configured port on all IPv4 + IPv6 addresses. Explicit binds
+        // replace that default...
+        .bind("127.0.0.1:9090")
+        // ...so re-add the configured port if you still want it. `bind()`
+        // accepts ports, IPs, strings, socket addresses, and pre-bound
+        // listeners; see the `Server::bind` docs.
+        .bind(cfg.port)
+        .serve()
         .await?;
 
     Ok(())

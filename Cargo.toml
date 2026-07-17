@@ -9,10 +9,20 @@ license = "MIT"
 repository = "https://github.com/bakakaba/tinkr_framework"
 
 [workspace.dependencies]
+# Internal crates that appear in published manifests declare their
+# `{ path, version }` dependency in the consuming crate's Cargo.toml —
+# release-please only bumps version requirements there, not in
+# [workspace.dependencies].
 tinkr_framework = { path = "crates/tinkr_framework" }
+
 tokio = "1"
 thiserror = "2"
 dotenvy = "0.15"
+toml = "1"
+syn = "2"
+quote = "1"
+proc-macro2 = "1"
+proc-macro-crate = "3"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-stackdriver = "0.10"
@@ -25,6 +35,8 @@ prost = "0.14"
 axum = "0.8"
 tower = "0.5"
 http = "1"
+socket2 = "0.6"
 hyper = "1"
 hyper-util = "0.1"
 http-body-util = "0.1"
+libc = "0.2"

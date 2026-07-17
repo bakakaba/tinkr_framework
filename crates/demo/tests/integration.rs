@@ -15,20 +15,30 @@ use tinkr_framework::Server;
 use tinkr_framework::health::{Check, Health, Status};
 use tinkr_framework::routing::get;
 
+/// Load the configuration exactly once for this test process; `Server::new`
+/// requires it, and tests here share the process.
+fn ensure_config() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        tinkr_framework::config::load!(()).expect("failed to load configuration");
+    });
+}
+
 /// Start a demo server on an OS-assigned port and return its address.
 ///
 /// The listener is pre-bound on port 0 so the address is known before the
-/// server task starts; `serve()` accepts the bound listener directly.
+/// server task starts; `bind()` accepts the bound listener directly.
 async fn spawn(configure: impl FnOnce(Server) -> Server + Send + 'static) -> SocketAddr {
+    ensure_config();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("failed to bind listener");
     let addr = listener.local_addr().expect("failed to read local addr");
 
     tokio::spawn(async move {
-        let server = Server::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-        configure(server)
-            .serve(listener)
+        configure(Server::new())
+            .bind(listener)
+            .serve()
             .await
             .expect("server error");
     });
@@ -60,7 +70,8 @@ async fn http_route_responds() {
 }
 
 /// Without a custom evaluation, `/health` reports the service identity from
-/// `Server::new`, an overall "ok" status, uptime, and evaluation duration.
+/// the loaded configuration, an overall "ok" status, uptime, and evaluation
+/// duration.
 #[tokio::test]
 async fn health_default_reports_ok() {
     let addr = spawn_server().await;

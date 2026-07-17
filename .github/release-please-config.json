@@ -12,13 +12,28 @@
     {
       "type": "linked-versions",
       "groupName": "tinkr_framework workspace",
-      "components": ["tinkr_framework", "demo"]
+      "components": [
+        "tinkr_framework",
+        "tinkr_config",
+        "tinkr_config_macros",
+        "demo"
+      ]
     }
   ],
   "packages": {
     "crates/tinkr_framework": {
       "package-name": "tinkr_framework",
       "component": "tinkr_framework"
+    },
+    "crates/tinkr_config": {
+      "package-name": "tinkr_config",
+      "component": "tinkr_config",
+      "skip-github-release": true
+    },
+    "crates/tinkr_config_macros": {
+      "package-name": "tinkr_config_macros",
+      "component": "tinkr_config_macros",
+      "skip-github-release": true
     },
     "crates/demo": {
       "package-name": "demo",

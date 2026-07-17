@@ -18,6 +18,10 @@ pub enum Error {
     /// `ip:port` pair nor a bare IP address.
     #[error("invalid address: {0}")]
     InvalidAddress(String),
+
+    /// The configuration failed to load; see [`crate::config`].
+    #[error(transparent)]
+    Config(#[from] tinkr_config::Error),
 }
 
 /// Convenience alias for results returned by this crate.
