@@ -17,9 +17,9 @@ its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
 
 ## Features (crates/tinkr_framework)
 
-- `grpc` (default): gates `tonic`/`tower`/`http` deps and all gRPC server code.
-  New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
-  `--no-default-features`.
+- `grpc` (default): gates `tonic`/`tonic-prost`/`prost`/`tower`/`http` deps and all gRPC
+  server code. New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile
+  with `--no-default-features`.
 - `gcp` (non-default): gates `tracing-stackdriver`; `bootstrap::init` picks the log layer
   per feature + deployment env vars (`KUBERNETES_SERVICE_HOST`, `K_SERVICE`, `CLOUD_RUN_JOB`).
 - docs.rs builds with `all-features` and `--cfg docsrs`; use `#[cfg_attr(docsrs, doc(cfg(...)))]`
@@ -42,10 +42,14 @@ minimal Arguments sections, runnable doctests only.
 - Root re-exports of the crate's own items are deliberately minimal (`Server`, the `init!`
   macro, and the `config` re-export; the `bootstrap` module stays private). Prefer
   module-qualified paths for everything else (`utilities::new_id`) in docs and examples.
-  Dependencies that appear in the public API are re-exported (`tinkr_config` as `config`,
-  `axum` plus the flattened `Router`/`routing`, and `tonic` behind the `grpc` feature) so
-  users build against the versions the framework supports — use these re-exports in docs
-  and the demo instead of direct deps where possible.
+  Dependencies that appear in the public API or in consumer gRPC code are re-exported
+  (`tinkr_config` as `config`, `axum` plus the flattened `Router`/`routing`, and
+  `tonic`/`tonic_prost`/`prost` behind the `grpc` feature) so users build against the
+  versions the framework supports — use these re-exports in docs and the demo instead of
+  direct deps where possible. Generated tonic/prost code names `tonic`, `tonic_prost`,
+  and `prost` directly, so consumer crates with generated services (the demo included)
+  additionally declare those three as direct deps; Cargo unifies them with the framework's
+  versions as long as the majors match.
 - `init!` is the single entry point: it loads the configuration (returning
   `&'static Config<T>`; `init!()` loads `Config<()>`) and sets up logging, and must be
   called before building a `Server` (`Server::new` panics otherwise). It intentionally
@@ -71,6 +75,11 @@ minimal Arguments sections, runnable doctests only.
   `crates/demo/src/gen/`. After editing the proto, run `just gen` (requires the `buf` CLI and
   network access) and commit the result — CI fails if the generated code drifts. Never edit
   `src/gen/` by hand.
+- Bumping the tonic/prost major version is a breaking change to the framework's public API
+  (re-exports + `Server` bounds): use a `!` conventional commit, bump the plugin pins in
+  `crates/demo/buf.gen.yaml` to the matching releases, and rerun `just gen` in the same PR —
+  CI (generated-code drift check + compile) fails otherwise. Minor/patch bumps need none of
+  this; Cargo unifies them.
 - Releases are automated: `release-please` opens a release PR from conventional commits on
   `main` (all crates version-locked via `linked-versions`); merging it tags the release
   (single `v*` tag + GitHub release, owned by `tinkr_framework`) and publishes the three

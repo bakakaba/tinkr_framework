@@ -14,7 +14,7 @@
 //! - `examples/gen_schema.rs` — regenerates `config.schema.json` for editor
 //!   intellisense on `config.toml`.
 
-use tonic::{Request, Response, Status};
+use tinkr_framework::tonic::{self, Request, Response, Status};
 
 pub mod config;
 

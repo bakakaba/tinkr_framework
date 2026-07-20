@@ -10,7 +10,7 @@ documentation = "https://docs.rs/tinkr_framework"
 
 [features]
 default = ["grpc"]
-grpc = ["dep:tonic", "dep:tower", "dep:http"]
+grpc = ["dep:tonic", "dep:tonic-prost", "dep:prost", "dep:tower", "dep:http"]
 gcp = ["dep:tracing-stackdriver"]
 
 [dependencies]
@@ -36,6 +36,8 @@ serde = { workspace = true, features = ["derive"] }
 
 axum = { workspace = true, features = ["http2", "json"] }
 tonic = { workspace = true, optional = true }
+tonic-prost = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing-stackdriver = { workspace = true, optional = true }
