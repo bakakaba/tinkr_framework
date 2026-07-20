@@ -1,7 +1,7 @@
 [package]
 name = "tinkr_config_macros"
 edition.workspace = true
-version = "0.1.2"
+version.workspace = true
 description = "Derive macro for tinkr_config. Use through the tinkr_config crate."
 readme.workspace = true
 license.workspace = true

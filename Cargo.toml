@@ -3,6 +3,10 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
+# Single version for the whole workspace (crates set `version.workspace = true`);
+# bumped by release-please via the extra-files updaters declared in
+# .github/release-please-config.json.
+version = "0.1.3"
 edition = "2024"
 readme = "README.md"
 license = "MIT"
@@ -11,15 +15,15 @@ repository = "https://github.com/bakakaba/tinkr_framework"
 [workspace.dependencies]
 # Internal crates that appear in published manifests declare their
 # `{ path, version }` dependency in the consuming crate's Cargo.toml —
-# release-please only bumps version requirements there, not in
-# [workspace.dependencies].
+# release-please bumps those version requirements via the extra-files
+# updaters in .github/release-please-config.json, not here.
 tinkr_framework = { path = "crates/tinkr_framework" }
 
 tokio = "1"
 thiserror = "2"
 dotenvy = "0.15"
 toml = "1"
-syn = "2"
+syn = "3"
 quote = "1"
 proc-macro2 = "1"
 proc-macro-crate = "3"
