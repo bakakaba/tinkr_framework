@@ -1,7 +1,7 @@
 [package]
 name = "tinkr_framework"
 edition.workspace = true
-version = "0.1.3"
+version.workspace = true
 description = "Framework for building APIs: multiplexed HTTP + gRPC serving on a single port, with bootstrap and logging."
 readme.workspace = true
 license.workspace = true
@@ -14,7 +14,7 @@ grpc = ["dep:tonic", "dep:tonic-prost", "dep:prost", "dep:tower", "dep:http"]
 gcp = ["dep:tracing-stackdriver"]
 
 [dependencies]
-tinkr_config = { path = "../tinkr_config", version = "0.1.2" }
+tinkr_config = { path = "../tinkr_config", version = "0.1.3" }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",

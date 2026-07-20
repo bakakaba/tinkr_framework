@@ -1,45 +1,33 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "rust",
+  "release-type": "simple",
   "include-component-in-tag": false,
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
-  "plugins": [
-    {
-      "type": "cargo-workspace",
-      "merge": false
-    },
-    {
-      "type": "linked-versions",
-      "groupName": "tinkr_framework workspace",
-      "components": [
-        "tinkr_framework",
-        "tinkr_config",
-        "tinkr_config_macros",
-        "demo"
-      ]
-    }
-  ],
   "packages": {
-    "crates/tinkr_framework": {
-      "package-name": "tinkr_framework",
-      "component": "tinkr_framework"
-    },
-    "crates/tinkr_config": {
-      "package-name": "tinkr_config",
-      "component": "tinkr_config",
-      "skip-github-release": true
-    },
-    "crates/tinkr_config_macros": {
-      "package-name": "tinkr_config_macros",
-      "component": "tinkr_config_macros",
-      "skip-github-release": true
-    },
-    "crates/demo": {
-      "package-name": "demo",
-      "component": "demo",
-      "skip-github-release": true,
-      "skip-changelog": true
+    ".": {
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/tinkr_framework/Cargo.toml",
+          "jsonpath": "$.dependencies.tinkr_config.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/tinkr_config/Cargo.toml",
+          "jsonpath": "$.dependencies.tinkr_config_macros.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value=='tinkr_framework'||@.name.value=='tinkr_config'||@.name.value=='tinkr_config_macros'||@.name.value=='demo')].version"
+        }
+      ]
     }
   }
 }

@@ -37,8 +37,14 @@ minimal Arguments sections, runnable doctests only.
   `{ workspace = true }`. Add new deps at the root, not per-crate. **Exception:** internal
   crate deps that appear in published manifests (`tinkr_config` in the framework,
   `tinkr_config_macros` in `tinkr_config`) declare `{ path, version }` in the consuming
-  crate's Cargo.toml — release-please only bumps version requirements there, never in
+  crate's Cargo.toml — release-please bumps those version requirements via the
+  extra-files updaters in `.github/release-please-config.json`, never in
   `[workspace.dependencies]`.
+- All crates share one version: `[workspace.package] version` in the root Cargo.toml,
+  inherited with `version.workspace = true`. Never version a crate individually. Adding a
+  published crate means extending the release-please extra-files (the `Cargo.lock`
+  jsonpath filter, plus a `dependencies.<name>.version` entry for any new internal
+  `{ path, version }` requirement).
 - Root re-exports of the crate's own items are deliberately minimal (`Server`, the `init!`
   macro, and the `config` re-export; the `bootstrap` module stays private). Prefer
   module-qualified paths for everything else (`utilities::new_id`) in docs and examples.
@@ -80,10 +86,13 @@ minimal Arguments sections, runnable doctests only.
   `crates/demo/buf.gen.yaml` to the matching releases, and rerun `just gen` in the same PR —
   CI (generated-code drift check + compile) fails otherwise. Minor/patch bumps need none of
   this; Cargo unifies them.
-- Releases are automated: `release-please` opens a release PR from conventional commits on
-  `main` (all crates version-locked via `linked-versions`); merging it tags the release
-  (single `v*` tag + GitHub release, owned by `tinkr_framework`) and publishes the three
-  library crates with `cargo publish --workspace` in dependency order. `tinkr_config` and
-  `tinkr_config_macros` keep their own `CHANGELOG.md` (entries assigned by touched paths);
-  only `demo` skips changelogs.
+- Releases are automated and treat the workspace as one unit: `release-please` (single
+  root package, `release-type: simple`) opens a release PR from conventional commits on
+  `main`, bumping the root `CHANGELOG.md`, the workspace version, the internal dep
+  requirements, and `Cargo.lock` — every crate always releases at the same
+  version, changed or not. Merging it tags the release (single `v*` tag + GitHub release)
+  and publishes the three library crates in dependency order via crates.io Trusted
+  Publishing (OIDC; no long-lived token). The root `CHANGELOG.md` is the only changelog;
+  each published crate has a `CHANGELOG.md` symlink to it so the content ships in the
+  `.crate` package (cargo dereferences symlinks when packaging).
 - Commit messages: conventional commits (`feat:`, `refactor:`, `chore:`).
