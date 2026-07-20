@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/bakakaba/tinkr_framework/compare/v0.1.2...v0.1.3) (2026-07-20)
+
+
+### Features
+
+* re-export tonic-prost and prost so consumer gRPC deps stay in lockstep ([692d3b2](https://github.com/bakakaba/tinkr_framework/commit/692d3b252d9117740db82917e4ecc0515cec3bae))
+
 ## [0.1.2](https://github.com/bakakaba/tinkr_framework/compare/v0.1.1...v0.1.2) (2026-07-17)
 
 
