@@ -6,7 +6,7 @@ members = ["crates/*"]
 # Single version for the whole workspace (crates set `version.workspace = true`);
 # bumped by release-please via the extra-files updaters declared in
 # .github/release-please-config.json.
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 readme = "README.md"
 license = "MIT"

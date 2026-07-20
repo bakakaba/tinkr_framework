@@ -14,7 +14,7 @@ grpc = ["dep:tonic", "dep:tonic-prost", "dep:prost", "dep:tower", "dep:http"]
 gcp = ["dep:tracing-stackdriver"]
 
 [dependencies]
-tinkr_config = { path = "../tinkr_config", version = "0.1.3" }
+tinkr_config = { path = "../tinkr_config", version = "0.1.4" }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",
