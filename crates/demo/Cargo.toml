@@ -7,6 +7,10 @@ publish = false
 [dependencies]
 tinkr_framework = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
+# The generated code in src/gen/ refers to these three crates by name, so
+# they must be direct dependencies. Hand-written code uses the
+# `tinkr_framework::{tonic, tonic_prost, prost}` re-exports instead, and
+# Cargo unifies these requirements with the framework's versions.
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
 prost = { workspace = true }
