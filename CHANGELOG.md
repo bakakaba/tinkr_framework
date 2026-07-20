@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/bakakaba/tinkr_framework/compare/v0.1.3...v0.1.4) (2026-07-20)
+
+
+### Bug Fixes
+
+* fix release missing id-token ([06ea32c](https://github.com/bakakaba/tinkr_framework/commit/06ea32cabc9e14a89b0bd8a6c525eaffba4aa7fe))
+* fix versioning to be locked to single version for all packages ([f402eb4](https://github.com/bakakaba/tinkr_framework/commit/f402eb4d4604e560ba25a2983f2ceb84479c1816))
+
 ## [0.1.3](https://github.com/bakakaba/tinkr_framework/compare/v0.1.2...v0.1.3) (2026-07-20)
 
 
