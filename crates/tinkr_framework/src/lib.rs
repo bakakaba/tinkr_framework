@@ -12,11 +12,9 @@
 //!
 //! Generated tonic/prost code refers to the `tonic`, `tonic_prost`, and
 //! `prost` crates by name, so a crate containing generated services must
-//! declare all three as direct dependencies. Declare them on the same major
-//! versions as the framework's [`tonic`], [`tonic_prost`], and [`prost`]
-//! re-exports (and use the re-exports in hand-written code) — Cargo then
-//! unifies each to a single copy, keeping generated code and the framework
-//! in lockstep.
+//! declare all three as direct dependencies, on the same major version as
+//! the framework's [`tonic`] re-export — Cargo then unifies each to a
+//! single copy, keeping generated code and the framework in lockstep.
 //!
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -80,12 +78,4 @@ pub use axum::{Router, routing};
 #[cfg(feature = "grpc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
 #[doc(no_inline)]
-pub use prost;
-#[cfg(feature = "grpc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
-#[doc(no_inline)]
 pub use tonic;
-#[cfg(feature = "grpc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
-#[doc(no_inline)]
-pub use tonic_prost;
