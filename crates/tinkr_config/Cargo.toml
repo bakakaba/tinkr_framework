@@ -9,7 +9,7 @@ repository.workspace = true
 documentation = "https://docs.rs/tinkr_config"
 
 [dependencies]
-tinkr_config_macros = { path = "../tinkr_config_macros", version = "0.1.4" }
+tinkr_config_macros = { path = "../tinkr_config_macros", version = "0.1.5" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 toml = { workspace = true }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/bakakaba/tinkr_framework/compare/v0.1.4...v0.1.5) (2026-07-21)
+
+
+### Bug Fixes
+
+* revert tonic reexports as there is no benefit to it ([8900c2a](https://github.com/bakakaba/tinkr_framework/commit/8900c2a412c40947e362d491fd60484e31923464))
+
 ## [0.1.4](https://github.com/bakakaba/tinkr_framework/compare/v0.1.3...v0.1.4) (2026-07-20)
 
 
