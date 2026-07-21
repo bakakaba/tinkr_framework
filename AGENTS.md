@@ -17,9 +17,9 @@ its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
 
 ## Features (crates/tinkr_framework)
 
-- `grpc` (default): gates `tonic`/`tonic-prost`/`prost`/`tower`/`http` deps and all gRPC
-  server code. New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile
-  with `--no-default-features`.
+- `grpc` (default): gates `tonic`/`tower`/`http` deps and all gRPC server code.
+  New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
+  `--no-default-features`.
 - `gcp` (non-default): gates `tracing-stackdriver`; `bootstrap::init` picks the log layer
   per feature + deployment env vars (`KUBERNETES_SERVICE_HOST`, `K_SERVICE`, `CLOUD_RUN_JOB`).
 - docs.rs builds with `all-features` and `--cfg docsrs`; use `#[cfg_attr(docsrs, doc(cfg(...)))]`
@@ -48,14 +48,13 @@ minimal Arguments sections, runnable doctests only.
 - Root re-exports of the crate's own items are deliberately minimal (`Server`, the `init!`
   macro, and the `config` re-export; the `bootstrap` module stays private). Prefer
   module-qualified paths for everything else (`utilities::new_id`) in docs and examples.
-  Dependencies that appear in the public API or in consumer gRPC code are re-exported
-  (`tinkr_config` as `config`, `axum` plus the flattened `Router`/`routing`, and
-  `tonic`/`tonic_prost`/`prost` behind the `grpc` feature) so users build against the
-  versions the framework supports — use these re-exports in docs and the demo instead of
-  direct deps where possible. Generated tonic/prost code names `tonic`, `tonic_prost`,
-  and `prost` directly, so consumer crates with generated services (the demo included)
-  additionally declare those three as direct deps; Cargo unifies them with the framework's
-  versions as long as the majors match.
+  Dependencies that appear in the public API are re-exported (`tinkr_config` as `config`,
+  `axum` plus the flattened `Router`/`routing`, and `tonic` behind the `grpc` feature) so
+  users build against the versions the framework supports — use these re-exports in docs
+  and the demo instead of direct deps where possible. Generated tonic/prost code names
+  `tonic`, `tonic_prost`, and `prost` directly, so consumer crates with generated services
+  (the demo included) declare those three as direct deps; Cargo unifies them with the
+  framework's versions as long as the majors match.
 - `init!` is the single entry point: it loads the configuration (returning
   `&'static Config<T>`; `init!()` loads `Config<()>`) and sets up logging, and must be
   called before building a `Server` (`Server::new` panics otherwise). It intentionally
