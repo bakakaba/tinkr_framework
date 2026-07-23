@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/bakakaba/tinkr_framework/compare/v0.1.5...v0.1.6) (2026-07-23)
+
+
+### Features
+
+* add name and version to startup log ([bde9df7](https://github.com/bakakaba/tinkr_framework/commit/bde9df7aaa4d7630e1ed9fce4823b5c6a1d4dc6e))
+
 ## [0.1.5](https://github.com/bakakaba/tinkr_framework/compare/v0.1.4...v0.1.5) (2026-07-21)
 
 
