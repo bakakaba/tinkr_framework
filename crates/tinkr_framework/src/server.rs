@@ -241,7 +241,7 @@ impl Server {
             .map(|addr| addr.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        tracing::info!("serving on {addresses}");
+        tracing::info!(service = %base.name, version = %base.version, "serving on {addresses}");
 
         // Signal receipt is observed separately so the shutdown deadline
         // starts at the signal, not at connection-drain completion, and is
