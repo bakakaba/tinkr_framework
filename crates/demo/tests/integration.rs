@@ -194,6 +194,99 @@ async fn http_and_grpc_share_one_port() {
     assert_eq!(reply.message, "Hello tinkr!");
 }
 
+/// Start a server with reflection enabled and return its address.
+async fn spawn_with_reflection() -> SocketAddr {
+    spawn(|server| {
+        server
+            .grpc_service(GreeterServer::new(MyGreeter))
+            .grpc_reflection(demo::pb::FILE_DESCRIPTOR_SET)
+    })
+    .await
+}
+
+/// Open a gRPC channel to the given address.
+// tonic-reflection compiles its generated client without tonic's transport
+// feature (no `connect` constructor), so the channel is built here with the
+// demo's own tonic and passed to `ServerReflectionClient::new`.
+async fn grpc_channel(addr: SocketAddr) -> tonic::transport::Channel {
+    tonic::transport::Endpoint::from_shared(format!("http://{addr}"))
+        .expect("invalid endpoint")
+        .connect()
+        .await
+        .expect("failed to connect gRPC channel")
+}
+
+/// `grpc_reflection` advertises the registered services over the v1
+/// reflection protocol.
+#[tokio::test]
+async fn grpc_reflection_v1_lists_services() {
+    use tonic_reflection::pb::v1::ServerReflectionRequest;
+    use tonic_reflection::pb::v1::server_reflection_client::ServerReflectionClient;
+    use tonic_reflection::pb::v1::server_reflection_request::MessageRequest;
+    use tonic_reflection::pb::v1::server_reflection_response::MessageResponse;
+
+    let addr = spawn_with_reflection().await;
+
+    let mut client = ServerReflectionClient::new(grpc_channel(addr).await);
+    let mut responses = client
+        .server_reflection_info(tokio_stream::iter([ServerReflectionRequest {
+            host: String::new(),
+            message_request: Some(MessageRequest::ListServices(String::new())),
+        }]))
+        .await
+        .expect("v1 reflection call failed")
+        .into_inner();
+
+    let response = responses
+        .message()
+        .await
+        .expect("v1 reflection stream errored")
+        .expect("v1 reflection stream ended without a response");
+    let Some(MessageResponse::ListServicesResponse(list)) = response.message_response else {
+        panic!("unexpected reflection response: {response:?}");
+    };
+    let names: Vec<_> = list.service.iter().map(|s| s.name.as_str()).collect();
+    assert!(
+        names.contains(&"hello.Greeter"),
+        "hello.Greeter not advertised: {names:?}"
+    );
+}
+
+/// The v1alpha reflection protocol is served too, for older clients.
+#[tokio::test]
+async fn grpc_reflection_v1alpha_lists_services() {
+    use tonic_reflection::pb::v1alpha::ServerReflectionRequest;
+    use tonic_reflection::pb::v1alpha::server_reflection_client::ServerReflectionClient;
+    use tonic_reflection::pb::v1alpha::server_reflection_request::MessageRequest;
+    use tonic_reflection::pb::v1alpha::server_reflection_response::MessageResponse;
+
+    let addr = spawn_with_reflection().await;
+
+    let mut client = ServerReflectionClient::new(grpc_channel(addr).await);
+    let mut responses = client
+        .server_reflection_info(tokio_stream::iter([ServerReflectionRequest {
+            host: String::new(),
+            message_request: Some(MessageRequest::ListServices(String::new())),
+        }]))
+        .await
+        .expect("v1alpha reflection call failed")
+        .into_inner();
+
+    let response = responses
+        .message()
+        .await
+        .expect("v1alpha reflection stream errored")
+        .expect("v1alpha reflection stream ended without a response");
+    let Some(MessageResponse::ListServicesResponse(list)) = response.message_response else {
+        panic!("unexpected reflection response: {response:?}");
+    };
+    let names: Vec<_> = list.service.iter().map(|s| s.name.as_str()).collect();
+    assert!(
+        names.contains(&"hello.Greeter"),
+        "hello.Greeter not advertised: {names:?}"
+    );
+}
+
 /// Unmatched HTTP paths get a plain 404, not tonic's `unimplemented` fallback.
 #[tokio::test]
 async fn unmatched_path_is_http_404() {

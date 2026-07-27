@@ -41,6 +41,12 @@ are supported:
 
 Both emit the same concrete `XxxServer<T>`, so registration is identical.
 
+`grpc_reflection` enables [gRPC server reflection](https://grpc.io/docs/guides/reflection/)
+(both the `v1` and `v1alpha` protocols), letting clients like `grpcurl`
+discover your services at runtime. Pass an encoded `FileDescriptorSet` —
+from `tonic_prost_build`'s `file_descriptor_set_path` or buf's
+`file_descriptor_set` plugin option (see `crates/demo/buf.gen.yaml`).
+
 ## Bootstrap & configuration
 
 Call `tinkr_framework::init!` first thing in `main`: it loads `.env` (if

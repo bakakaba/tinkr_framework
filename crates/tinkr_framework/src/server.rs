@@ -50,6 +50,9 @@ pub struct Server {
     grpc: tonic::service::Routes,
     #[cfg(feature = "grpc")]
     has_grpc: bool,
+    // Encoded `FileDescriptorSet`s to expose via gRPC server reflection.
+    #[cfg(feature = "grpc")]
+    reflection: Vec<&'static [u8]>,
     health_check: Option<HealthCheck>,
     shutdown_hook: Option<ShutdownHook>,
     binds: Vec<BindSpec>,
@@ -63,6 +66,8 @@ impl std::fmt::Debug for Server {
         s.field("has_http", &self.has_http);
         #[cfg(feature = "grpc")]
         s.field("has_grpc", &self.has_grpc);
+        #[cfg(feature = "grpc")]
+        s.field("reflection_sets", &self.reflection.len());
         s.field("has_health_check", &self.health_check.is_some());
         s.field("has_shutdown_hook", &self.shutdown_hook.is_some());
         s.field("binds", &self.binds.len());
@@ -96,6 +101,8 @@ impl Server {
             grpc: tonic::service::Routes::from(axum::Router::new()),
             #[cfg(feature = "grpc")]
             has_grpc: false,
+            #[cfg(feature = "grpc")]
+            reflection: Vec::new(),
             health_check: None,
             shutdown_hook: None,
             binds: Vec::new(),
@@ -139,6 +146,28 @@ impl Server {
     {
         self.grpc = self.grpc.add_service(svc);
         self.has_grpc = true;
+        self
+    }
+
+    /// Enable [gRPC server reflection], letting clients such as `grpcurl`
+    /// and Postman discover services and message schemas at runtime. Both
+    /// the `v1` and `v1alpha` reflection protocols are served.
+    ///
+    /// Every service in the registered descriptor sets is advertised. Call
+    /// repeatedly to register multiple descriptor sets.
+    ///
+    /// # Arguments
+    ///
+    /// - `encoded_file_descriptor_set` — an encoded `FileDescriptorSet`, as
+    ///   produced by `tonic_prost_build`'s `file_descriptor_set_path` or
+    ///   buf's `file_descriptor_set` plugin option (the generated
+    ///   `FILE_DESCRIPTOR_SET` constant)
+    ///
+    /// [gRPC server reflection]: https://grpc.io/docs/guides/reflection/
+    #[cfg(feature = "grpc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+    pub fn grpc_reflection(mut self, encoded_file_descriptor_set: &'static [u8]) -> Self {
+        self.reflection.push(encoded_file_descriptor_set);
         self
     }
 
@@ -318,7 +347,9 @@ impl Server {
         // misconfiguration. The always-on default `/health` route doesn't
         // count, but an explicitly registered health check does.
         #[cfg(feature = "grpc")]
-        let configured = self.has_http || self.has_grpc || self.health_check.is_some();
+        let has_grpc = self.has_grpc || !self.reflection.is_empty();
+        #[cfg(feature = "grpc")]
+        let configured = self.has_http || has_grpc || self.health_check.is_some();
         #[cfg(not(feature = "grpc"))]
         let configured = self.has_http || self.health_check.is_some();
 
@@ -351,9 +382,26 @@ impl Server {
         );
 
         #[cfg(feature = "grpc")]
-        if self.has_grpc {
-            let grpc = self.grpc.into_axum_router();
-            app = app.merge(grpc);
+        if has_grpc {
+            let mut grpc = self.grpc;
+            if !self.reflection.is_empty() {
+                // The builder is consumed per build, so configure it twice —
+                // once per protocol version.
+                let configure = || {
+                    self.reflection.iter().fold(
+                        tonic_reflection::server::Builder::configure(),
+                        |builder, set| builder.register_encoded_file_descriptor_set(set),
+                    )
+                };
+                let v1 = configure()
+                    .build_v1()
+                    .map_err(|e| Error::InvalidDescriptorSet(e.to_string()))?;
+                let v1alpha = configure()
+                    .build_v1alpha()
+                    .map_err(|e| Error::InvalidDescriptorSet(e.to_string()))?;
+                grpc = grpc.add_service(v1).add_service(v1alpha);
+            }
+            app = app.merge(grpc.into_axum_router());
         }
 
         Ok(app)

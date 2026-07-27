@@ -19,6 +19,13 @@ pub enum Error {
     #[error("invalid address: {0}")]
     InvalidAddress(String),
 
+    /// A descriptor set passed to [`crate::Server::grpc_reflection`] is not
+    /// a valid encoded `FileDescriptorSet`.
+    #[cfg(feature = "grpc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+    #[error("invalid reflection descriptor set: {0}")]
+    InvalidDescriptorSet(String),
+
     /// The configuration failed to load; see [`crate::config`].
     #[error(transparent)]
     Config(#[from] tinkr_config::Error),
