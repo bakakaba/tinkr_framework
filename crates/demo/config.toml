@@ -10,8 +10,8 @@
 # TCP port the server listens on. (env: PORT)
 port = 8081
 
-# Deployment environment name, e.g. "development" or "production". (env: ENVIRONMENT)
-#environment = "development"
+# Deployment environment. (env: ENV)
+#env = "local"
 
 # Graceful shutdown grace period, in seconds. (env: SHUTDOWN_TIMEOUT)
 #shutdown_timeout = 30

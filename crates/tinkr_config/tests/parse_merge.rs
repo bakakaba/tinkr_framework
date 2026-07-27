@@ -56,21 +56,35 @@ fn provided_fields_resolve() {
     let toml = r#"
         url = "u"
         port = 9999
-        environment = "production"
+        env = "production"
         shutdown_timeout = 5
     "#;
     let config = tinkr_config::parse::<TestConfig>("svc", "1.2.3", Some(toml)).unwrap();
 
     assert_eq!(config.port, 9999);
-    assert_eq!(config.environment, "production");
+    assert_eq!(config.env, tinkr_config::Env::Production);
     assert_eq!(config.shutdown_timeout, std::time::Duration::from_secs(5));
     assert_eq!(config.name, "svc"); // default from load!/parse arguments
     assert_eq!(config.version, "1.2.3");
 
     let config = tinkr_config::parse::<TestConfig>("svc", "1.2.3", Some("url = \"u\"")).unwrap();
     assert_eq!(config.port, 8080);
-    assert_eq!(config.environment, "development");
+    assert_eq!(config.env, tinkr_config::Env::Local);
     assert_eq!(config.shutdown_timeout, std::time::Duration::from_secs(30));
+}
+
+#[test]
+fn unknown_env_value_errors() {
+    let toml = r#"
+        url = "u"
+        env = "staging"
+    "#;
+    let err = tinkr_config::parse::<TestConfig>("svc", "1.2.3", Some(toml)).unwrap_err();
+    let message = err.to_string();
+    assert!(
+        message.contains("`staging`") && message.contains("`production`"),
+        "unexpected message: {message}"
+    );
 }
 
 #[test]

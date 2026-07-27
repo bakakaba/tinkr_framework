@@ -17,6 +17,10 @@ prost = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+# Reflection client for the integration tests (the server side comes from
+# the framework's `grpc` feature).
+tonic-reflection = { workspace = true }
+tokio-stream = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["client", "client-legacy", "http1", "tokio"] }
 http-body-util = { workspace = true }

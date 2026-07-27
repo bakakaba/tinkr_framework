@@ -21,6 +21,9 @@ pub enum Node {
     Number,
     /// A string (or string-like value such as a path or address).
     String,
+    /// A string restricted to a fixed set of names (an
+    /// [`Environment`](crate::Environment) type's variants).
+    Enum(&'static [&'static str]),
     /// An array of homogeneous items.
     Array(Box<Node>),
     /// A table of named properties (a nested configuration struct).
@@ -102,7 +105,7 @@ impl<T: ToSchema> ToSchema for Option<T> {
 
 /// All top-level properties: base fields first, then the application's.
 fn all_properties<T: Configurable>() -> Vec<Property> {
-    let mut properties = base::properties();
+    let mut properties = base::properties::<T::Env>();
     if let Node::Object(app) = T::schema_node() {
         properties.extend(app);
     }
@@ -161,6 +164,7 @@ fn node_json(node: &Node) -> Value {
         Node::Integer => json!({"type": "integer"}),
         Node::Number => json!({"type": "number"}),
         Node::String => json!({"type": "string"}),
+        Node::Enum(names) => json!({"type": "string", "enum": names}),
         Node::Array(item) => json!({"type": "array", "items": node_json(item)}),
         Node::Object(properties) => object_json(properties),
         Node::Any => json!({}),
@@ -266,6 +270,7 @@ fn placeholder(node: &Node) -> String {
         Node::Integer => "0".to_string(),
         Node::Number => "0.0".to_string(),
         Node::Array(_) => "[]".to_string(),
+        Node::Enum(names) => format!("{:?}", names.first().unwrap_or(&"")),
         _ => "\"\"".to_string(),
     }
 }

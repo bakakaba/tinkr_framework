@@ -5,6 +5,9 @@ plugins:
   # `prost`/`tonic` 0.14 versions.
   - remote: buf.build/community/neoeinstein-prost:v0.5.0
     out: src/gen
+    # Embed the encoded FileDescriptorSet as a `FILE_DESCRIPTOR_SET` constant
+    # for gRPC server reflection (`Server::grpc_reflection`).
+    opt: [file_descriptor_set]
   # gRPC client + server (tonic).
   - remote: buf.build/community/neoeinstein-tonic:v0.5.0
     out: src/gen

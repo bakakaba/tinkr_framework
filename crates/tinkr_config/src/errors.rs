@@ -33,8 +33,13 @@ pub enum Error {
     #[error("failed to read config.toml: {0}")]
     Io(#[from] std::io::Error),
 
+    /// The configuration file's `env` value is not a variant of the
+    /// configured [`Environment`](crate::Environment) type.
+    #[error("invalid `env` in config.toml: {0}")]
+    UnknownEnvironment(#[from] crate::UnknownEnvironment),
+
     /// An application field uses a name reserved by the base
-    /// fields (`port`, `environment`, `shutdown_timeout`, `name`,
+    /// fields (`port`, `env`, `shutdown_timeout`, `name`,
     /// `version`).
     #[error("config field `{name}` collides with a base field; rename it")]
     ReservedField {
