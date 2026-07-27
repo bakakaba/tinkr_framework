@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/bakakaba/tinkr_framework/compare/v0.1.6...v0.1.7) (2026-07-27)
+
+
+### Features
+
+* gRPC server reflection ([#14](https://github.com/bakakaba/tinkr_framework/issues/14)) ([f7edb52](https://github.com/bakakaba/tinkr_framework/commit/f7edb528e93dbcae8f43424115b0d375257ccf21))
+
 ## [0.1.6](https://github.com/bakakaba/tinkr_framework/compare/v0.1.5...v0.1.6) (2026-07-23)
 
 
