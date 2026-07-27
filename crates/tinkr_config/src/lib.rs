@@ -37,6 +37,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 mod base;
+mod env;
 mod errors;
 mod sources;
 
@@ -45,9 +46,10 @@ pub mod schema;
 #[doc(hidden)]
 pub mod __private;
 
+pub use env::{Env, Environment, UnknownEnvironment};
 pub use errors::Error;
 pub use sources::{FieldSource, Source, Sources};
-pub use tinkr_config_macros::Configurable;
+pub use tinkr_config_macros::{Configurable, Environment};
 
 /// The configuration file read by [`load!`], relative to the working
 /// directory.
@@ -59,6 +61,12 @@ pub const CONFIG_FILE: &str = "config.toml";
 /// methods are machinery for the derive and not meant to be called or
 /// implemented by hand.
 pub trait Configurable: Sized {
+    /// The deployment environment type of [`Config::env`].
+    ///
+    /// Defaults to the provided [`Env`]; select a custom
+    /// [`Environment`] type with `#[config(env = MyEnv)]` on the struct.
+    type Env: Environment;
+
     /// Option-typed mirror of the struct, holding the values one layer
     /// provides.
     #[doc(hidden)]
@@ -111,10 +119,11 @@ impl Layer for EmptyLayer {
 }
 
 /// The empty configuration shape: a `Config<()>` carries only the base
-/// fields. Load one when a service has no settings of its own, or read it
-/// with [`get::<()>()`](get) to access the base fields without knowing the
-/// loaded type.
+/// fields. Load one when a service has no settings of its own. (For reading
+/// the base fields without knowing the loaded type, see [`base`].)
 impl Configurable for () {
+    type Env = Env;
+
     type Layer = EmptyLayer;
 
     fn doc() -> &'static str {
@@ -150,16 +159,17 @@ impl Configurable for () {
 /// }
 ///
 /// let config = tinkr_config::parse::<AppConfig>("demo", "1.0.0", None)?;
-/// assert_eq!(config.greeting, "hello");            // application field
-/// assert_eq!(config.environment, "development");   // base field
+/// assert_eq!(config.greeting, "hello");             // application field
+/// assert_eq!(config.env, tinkr_config::Env::Local); // base field
 /// # Ok::<(), tinkr_config::Error>(())
 /// ```
 #[derive(Debug)]
-pub struct Config<T> {
+pub struct Config<T: Configurable> {
     /// TCP port the server listens on (`PORT`, default `8080`).
     pub port: u16,
-    /// Deployment environment name (`ENVIRONMENT`, default `"development"`).
-    pub environment: String,
+    /// Deployment environment (`ENV`; the [`Environment`] type's default
+    /// when unset, [`Env::Local`] for the provided type).
+    pub env: T::Env,
     /// Graceful shutdown grace period (`SHUTDOWN_TIMEOUT` in seconds,
     /// default 30).
     pub shutdown_timeout: Duration,
@@ -169,10 +179,12 @@ pub struct Config<T> {
     /// version).
     pub version: String,
     app: T,
+    /// The resolved environment name, for the [`BaseConfig`] view.
+    env_name: String,
     sources: Sources,
 }
 
-impl<T> Deref for Config<T> {
+impl<T: Configurable> Deref for Config<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -180,7 +192,7 @@ impl<T> Deref for Config<T> {
     }
 }
 
-impl<T> Config<T> {
+impl<T: Configurable> Config<T> {
     /// Where each field's value came from, as a printable readout.
     ///
     /// Fields marked `#[config(secret)]` are redacted.
@@ -188,19 +200,34 @@ impl<T> Config<T> {
         &self.sources
     }
 
-    /// A copy of the base fields as a `Config<()>`, served by
-    /// [`get::<()>()`](get).
-    fn base_view(&self) -> Config<()> {
-        Config {
+    /// A copy of the base fields, served by [`base`].
+    fn base_config(&self) -> BaseConfig {
+        BaseConfig {
             port: self.port,
-            environment: self.environment.clone(),
+            env: self.env_name.clone(),
             shutdown_timeout: self.shutdown_timeout,
             name: self.name.clone(),
             version: self.version.clone(),
-            app: (),
-            sources: self.sources.clone(),
         }
     }
+}
+
+/// The base fields of the loaded configuration, readable through [`base`]
+/// without knowing the loaded [`Config`] type.
+#[derive(Debug)]
+pub struct BaseConfig {
+    /// TCP port the server listens on.
+    pub port: u16,
+    /// The resolved deployment environment name, e.g. `"local"`. (The typed
+    /// environment lives on [`Config::env`], which requires the loaded
+    /// type.)
+    pub env: String,
+    /// Graceful shutdown grace period.
+    pub shutdown_timeout: Duration,
+    /// Service name.
+    pub name: String,
+    /// Service version.
+    pub version: String,
 }
 
 /// The single loaded configuration for this process.
@@ -209,9 +236,9 @@ static GLOBAL: OnceLock<Stored> = OnceLock::new();
 struct Stored {
     type_name: &'static str,
     value: Box<dyn Any + Send + Sync>,
-    /// Base-fields view of `value`, so [`get::<()>()`](get) works without
-    /// knowing the loaded type.
-    base: Config<()>,
+    /// Base-fields view of `value`, so [`base`] works without knowing the
+    /// loaded type.
+    base: BaseConfig,
 }
 
 /// Loads the configuration and freezes it for the lifetime of the process.
@@ -268,7 +295,7 @@ where
 
     let stored = Stored {
         type_name: std::any::type_name::<T>(),
-        base: config.base_view(),
+        base: config.base_config(),
         value: Box::new(config),
     };
     if GLOBAL.set(stored).is_err() {
@@ -279,9 +306,6 @@ where
 
 /// Returns the configuration loaded by [`load!`], from anywhere in the
 /// program.
-///
-/// `get::<()>()` returns just the base fields — regardless of the loaded
-/// type — for code that doesn't know the application's configuration struct.
 ///
 /// ```
 /// use tinkr_config::Configurable;
@@ -299,30 +323,41 @@ where
 /// let config = tinkr_config::get::<AppConfig>();
 /// assert_eq!(config.greeting, "hello");
 ///
-/// let base = tinkr_config::get::<()>(); // base fields only, type-agnostic
+/// let base = tinkr_config::base(); // base fields only, type-agnostic
 /// assert_eq!(base.port, config.port);
 /// # Ok::<(), tinkr_config::Error>(())
 /// ```
 ///
 /// # Panics
 ///
-/// Panics when no configuration has been loaded, or when `T` is neither the
-/// loaded type nor `()`.
-pub fn get<T: 'static>() -> &'static Config<T> {
+/// Panics when no configuration has been loaded, or when `T` is not the
+/// loaded type. Code that doesn't know the loaded type reads the base
+/// fields with [`base`] instead.
+pub fn get<T: Configurable + 'static>() -> &'static Config<T> {
     let stored = GLOBAL
         .get()
         .expect("configuration not loaded: load the configuration at startup first");
     if let Some(config) = stored.value.downcast_ref::<Config<T>>() {
         return config;
     }
-    if let Some(base) = (&stored.base as &dyn Any).downcast_ref::<Config<T>>() {
-        return base;
-    }
     panic!(
         "configuration type mismatch: loaded `{}`, requested `{}`",
         stored.type_name,
         std::any::type_name::<T>()
     );
+}
+
+/// Returns the base fields of the loaded configuration, for code that
+/// doesn't know the application's configuration struct.
+///
+/// # Panics
+///
+/// Panics when no configuration has been loaded.
+pub fn base() -> &'static BaseConfig {
+    &GLOBAL
+        .get()
+        .expect("configuration not loaded: load the configuration at startup first")
+        .base
 }
 
 /// Resolves a configuration without touching the global slot or the file
@@ -354,7 +389,7 @@ pub fn parse<T: Configurable>(
     };
 
     let mut sources = Vec::new();
-    let base = base::merge(
+    let base = base::merge::<T::Env>(
         base::BaseLayer::from_env()?,
         base_file,
         base::BaseLayer::defaults(name, version),
@@ -370,11 +405,12 @@ pub fn parse<T: Configurable>(
 
     Ok(Config {
         port: base.port,
-        environment: base.environment,
+        env: base.env,
         shutdown_timeout: base.shutdown_timeout,
         name: base.name,
         version: base.version,
         app,
+        env_name: base.env_name,
         sources: Sources::new(sources),
     })
 }

@@ -21,6 +21,10 @@ use syn::{Data, DeriveInput, Expr, Fields, Ident, LitStr, Type, parse_macro_inpu
 ///   `#[derive(Configurable)]`), mapped to a TOML table
 /// - `secret` — the value is redacted in the source readout
 ///
+/// On the struct itself, `#[config(env = MyEnv)]` selects the deployment
+/// [`Environment`](macro@Environment) type of the base `env` field
+/// (defaults to `tinkr_config::Env`).
+///
 /// Doc comments on the struct and its fields become descriptions in the
 /// generated JSON Schema.
 #[proc_macro_derive(Configurable, attributes(config))]
@@ -63,6 +67,10 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let base = base_path()?;
     let ident = &input.ident;
     let struct_docs = doc_string(&input.attrs);
+    let env_ty = match parse_struct_env(&input.attrs)? {
+        Some(path) => quote! { #path },
+        None => quote! { #base::Env },
+    };
     let specs = fields
         .named
         .iter()
@@ -108,6 +116,8 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
         #[automatically_derived]
         impl #base::Configurable for #ident {
+            type Env = #env_ty;
+
             type Layer = #layer_ident;
 
             fn doc() -> &'static str {
@@ -286,6 +296,124 @@ fn schema_property(f: &FieldSpec, base: &syn::Path) -> proc_macro2::TokenStream 
             node: <#ty as #base::schema::ToSchema>::node(),
         }
     }
+}
+
+/// Parses the struct-level `#[config(env = MyEnv)]` attribute, if present.
+fn parse_struct_env(attrs: &[syn::Attribute]) -> syn::Result<Option<syn::Path>> {
+    let mut env = None;
+    for attr in attrs {
+        if !attr.path().is_ident("config") {
+            continue;
+        }
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("env") {
+                env = Some(meta.value()?.parse::<syn::Path>()?);
+                Ok(())
+            } else {
+                Err(meta.error(
+                    "unsupported #[config(...)] attribute on a struct; expected `env = MyEnv`",
+                ))
+            }
+        })?;
+    }
+    Ok(env)
+}
+
+/// Derives `tinkr_config::Environment` for an enum of unit variants.
+///
+/// Each variant's name, converted to snake_case, becomes its configuration
+/// value; parsing is case-insensitive. Derive `Default` alongside and mark
+/// one variant `#[default]` — it is used when no configuration layer
+/// provides an `env` value.
+///
+/// Select the enum on a `Configurable` struct with `#[config(env = MyEnv)]`.
+#[proc_macro_derive(Environment)]
+pub fn derive_environment(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    expand_environment(input)
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
+}
+
+fn expand_environment(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    let Data::Enum(data) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "#[derive(Environment)] only supports enums",
+        ));
+    };
+
+    let base = base_path()?;
+    let ident = &input.ident;
+
+    let mut idents = Vec::new();
+    let mut names = Vec::new();
+    for variant in &data.variants {
+        if !matches!(variant.fields, Fields::Unit) {
+            return Err(syn::Error::new_spanned(
+                variant,
+                "#[derive(Environment)] requires unit variants",
+            ));
+        }
+        names.push(LitStr::new(
+            &snake_case(&variant.ident.to_string()),
+            variant.ident.span(),
+        ));
+        idents.push(&variant.ident);
+    }
+    if idents.is_empty() {
+        return Err(syn::Error::new_spanned(
+            ident,
+            "#[derive(Environment)] requires at least one variant",
+        ));
+    }
+
+    Ok(quote! {
+        #[automatically_derived]
+        impl ::core::str::FromStr for #ident {
+            type Err = #base::UnknownEnvironment;
+
+            fn from_str(s: &str) -> ::core::result::Result<Self, Self::Err> {
+                #(if s.eq_ignore_ascii_case(#names) {
+                    return ::core::result::Result::Ok(Self::#idents);
+                })*
+                ::core::result::Result::Err(#base::UnknownEnvironment::new(
+                    s,
+                    <Self as #base::Environment>::variants(),
+                ))
+            }
+        }
+
+        #[automatically_derived]
+        impl ::core::fmt::Display for #ident {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                f.write_str(match self {
+                    #(Self::#idents => #names,)*
+                })
+            }
+        }
+
+        #[automatically_derived]
+        impl #base::Environment for #ident {
+            fn variants() -> &'static [&'static str] {
+                &[#(#names),*]
+            }
+        }
+    })
+}
+
+/// Converts a CamelCase variant name to snake_case (`PreProd` → `pre_prod`).
+fn snake_case(ident: &str) -> String {
+    let mut out = String::with_capacity(ident.len());
+    let mut prev_lower = false;
+    for ch in ident.chars() {
+        if ch.is_uppercase() && prev_lower {
+            out.push('_');
+        }
+        prev_lower = ch.is_lowercase() || ch.is_ascii_digit();
+        out.extend(ch.to_lowercase());
+    }
+    out
 }
 
 /// Wraps optional tokens in `Some(...)`/`None`.

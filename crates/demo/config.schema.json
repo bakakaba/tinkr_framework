@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Configuration for the demo service.\n\nApplication fields defined here compose with the framework-provided ones\n(`port`, `environment`, `shutdown_timeout`, `name`, `version`); all of\nthem live at the top level of `config.toml` and can be overridden by\ntheir environment variables.",
+  "description": "Configuration for the demo service.\n\nApplication fields defined here compose with the framework-provided ones\n(`port`, `env`, `shutdown_timeout`, `name`, `version`); all of\nthem live at the top level of `config.toml` and can be overridden by\ntheir environment variables.",
   "properties": {
     "cache": {
       "additionalProperties": false,
@@ -24,9 +24,14 @@
       "description": "Database connection URL; redacted in the startup readout. (env: DATABASE_URL)",
       "type": "string"
     },
-    "environment": {
-      "default": "development",
-      "description": "Deployment environment name, e.g. \"development\" or \"production\". (env: ENVIRONMENT)",
+    "env": {
+      "default": "local",
+      "description": "Deployment environment. (env: ENV)",
+      "enum": [
+        "local",
+        "development",
+        "production"
+      ],
       "type": "string"
     },
     "greeting": {

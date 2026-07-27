@@ -61,8 +61,13 @@ as `tinkr_framework::config`): derive `Configurable` on a struct describing
 your settings and pass it to `init!`. Each field resolves from its
 environment variable, then `config.toml` in the working directory, then the
 declared default; every service also gets the base fields `port`,
-`environment`, `shutdown_timeout`, `name`, and `version`, which drive the
-`Server`. Read the loaded config anywhere with `config::get::<AppConfig>()` and
+`env`, `shutdown_timeout`, `name`, and `version` (all but `env` drive the
+`Server`). The `env` field is the typed deployment environment: `local`
+(the default), `development`, or `production` (`ENV` env var); unknown
+names fail at startup. Services with more environments derive
+`config::Environment` on their own enum (plus `Default` with a `#[default]`
+variant) and select it with `#[config(env = MyEnv)]` on the config struct.
+Read the loaded config anywhere with `config::get::<AppConfig>()` and
 inspect per-field provenance with `.sources()`. For editor intellisense on
 `config.toml`, generate a JSON Schema with a small `config::write_schema`
 target and check the file in, guarded by a generate-and-diff CI step (see

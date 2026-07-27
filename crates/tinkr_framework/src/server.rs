@@ -88,7 +88,7 @@ impl Server {
     // panicking `default()` would be misleading.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let base = tinkr_config::get::<()>();
+        let base = tinkr_config::base();
         Self {
             service: base.name.as_str(),
             version: base.version.as_str(),
@@ -255,7 +255,7 @@ impl Server {
     /// otherwise exactly the bound addresses are served. The resolved
     /// addresses are logged at startup.
     pub async fn serve(mut self) -> Result<()> {
-        let base = tinkr_config::get::<()>();
+        let base = tinkr_config::base();
         let hook = self.shutdown_hook.take();
         let mut binds = std::mem::take(&mut self.binds);
         if binds.is_empty() {

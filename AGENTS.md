@@ -59,7 +59,7 @@ minimal Arguments sections, runnable doctests only.
   `&'static Config<T>`; `init!()` loads `Config<()>`) and sets up logging, and must be
   called before building a `Server` (`Server::new` panics otherwise). It intentionally
   panics on double init. The `Server` reads `name`/`version`/`port`/`shutdown_timeout`
-  from the loaded config via `config::get::<()>()` — there is deliberately no builder
+  from the loaded config via `config::base()` — there is deliberately no builder
   method or argument to override them; `bind()` (repeatable) is the only serve-target
   knob, and calling it replaces the implicit dual-stack `{port}` bind.
 - Tests that set the global tracing subscriber, mutate environment variables, load the
@@ -68,8 +68,10 @@ minimal Arguments sections, runnable doctests only.
 - Configuration (`tinkr_config`): consumers derive `Configurable`; precedence is env var >
   `config.toml` (CWD) > `#[config(default)]`. `load!`/`get` are the global path (frozen,
   panic on double-load/unloaded-get, matching `init`); `parse` is the test/tooling seam.
-  Top-level keys `port`, `environment`, `shutdown_timeout`, `name`, `version` are reserved
-  for the provided fields. The derive resolves its runtime paths via `proc-macro-crate`
+  Top-level keys `port`, `env`, `shutdown_timeout`, `name`, `version` are reserved
+  for the provided fields. The `env` field is typed: `tinkr_config::Env` by default,
+  or a consumer enum deriving `Environment` selected via struct-level
+  `#[config(env = MyEnv)]`. The derive resolves its runtime paths via `proc-macro-crate`
   (direct `tinkr_config` dep or the `tinkr_framework::config` re-export) — don't use the
   derive inside `tinkr_config` itself (the provided fields are hand-written for this
   reason).

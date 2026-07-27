@@ -33,17 +33,20 @@ fn env_overrides_file_and_defaults() {
         std::env::set_var("TINKR_TEST_WORKERS", "16");
         std::env::set_var("TINKR_TEST_CACHE_TTL", "60");
         std::env::set_var("PORT", "9090");
+        std::env::set_var("ENV", "production");
     }
 
     let toml = r#"
         workers = 8
         port = 7070
+        env = "development"
     "#;
     let config = tinkr_config::parse::<TestConfig>("svc", "1.0.0", Some(toml)).unwrap();
 
     assert_eq!(config.workers, 16); // env beats file
     assert_eq!(config.cache.ttl, 60); // env beats nested default
     assert_eq!(config.port, 9090); // env beats file for provided fields
+    assert_eq!(config.env, tinkr_config::Env::Production); // $ENV beats file
 
     let by_path = |path: &str| {
         config
@@ -56,6 +59,7 @@ fn env_overrides_file_and_defaults() {
     assert_eq!(by_path("workers"), Source::Env("TINKR_TEST_WORKERS"));
     assert_eq!(by_path("cache.ttl"), Source::Env("TINKR_TEST_CACHE_TTL"));
     assert_eq!(by_path("port"), Source::Env("PORT"));
+    assert_eq!(by_path("env"), Source::Env("ENV"));
 
     // An unparseable value reports the variable, not a panic.
     // SAFETY: see above.
@@ -64,5 +68,18 @@ fn env_overrides_file_and_defaults() {
     assert!(
         err.to_string().contains("$TINKR_TEST_WORKERS"),
         "unexpected message: {err}"
+    );
+
+    // Same for an unknown $ENV value.
+    // SAFETY: see above.
+    unsafe {
+        std::env::set_var("TINKR_TEST_WORKERS", "16");
+        std::env::set_var("ENV", "prouction");
+    }
+    let err = tinkr_config::parse::<TestConfig>("svc", "1.0.0", None).unwrap_err();
+    let message = err.to_string();
+    assert!(
+        message.contains("$ENV") && message.contains("`prouction`"),
+        "unexpected message: {message}"
     );
 }

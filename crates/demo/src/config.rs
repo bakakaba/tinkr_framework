@@ -6,7 +6,7 @@ use tinkr_framework::config::Configurable;
 /// Configuration for the demo service.
 ///
 /// Application fields defined here compose with the framework-provided ones
-/// (`port`, `environment`, `shutdown_timeout`, `name`, `version`); all of
+/// (`port`, `env`, `shutdown_timeout`, `name`, `version`); all of
 /// them live at the top level of `config.toml` and can be overridden by
 /// their environment variables.
 #[derive(Debug, Configurable)]

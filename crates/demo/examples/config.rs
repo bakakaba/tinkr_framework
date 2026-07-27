@@ -22,6 +22,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = tinkr_framework::init!(AppConfig)?;
     tracing::info!("resolved configuration:\n{}", cfg.sources());
 
+    // The deployment environment is typed: `ENV` (or the `env` key) parses
+    // into `config::Env` — `local` (the default), `development`, or
+    // `production`; anything else fails `init!`. Services with more
+    // environments derive `config::Environment` on their own enum and
+    // select it with `#[config(env = MyEnv)]` on the config struct.
+    if cfg.env == config::Env::Production {
+        tracing::warn!("this demo is not meant to run in production");
+    }
+
     // The server takes its identity, port, and shutdown grace period from
     // the loaded configuration; application fields deref directly.
     Server::new()

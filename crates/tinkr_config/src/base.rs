@@ -4,19 +4,19 @@
 use std::time::Duration;
 
 use crate::__private::{env_value, merge_required};
+use crate::env::Environment;
 use crate::errors::Error;
 use crate::schema::{Node, Property};
-use crate::sources::FieldSource;
+use crate::sources::{FieldSource, Source};
 
 /// Top-level keys claimed by the base fields.
-pub(crate) const RESERVED: [&str; 5] =
-    ["port", "environment", "shutdown_timeout", "name", "version"];
+pub(crate) const RESERVED: [&str; 5] = ["port", "env", "shutdown_timeout", "name", "version"];
 
 /// One layer's worth of base-field values.
 #[derive(Default, serde::Deserialize)]
 pub(crate) struct BaseLayer {
     port: Option<u16>,
-    environment: Option<String>,
+    env: Option<String>,
     shutdown_timeout: Option<u64>,
     name: Option<String>,
     version: Option<String>,
@@ -26,7 +26,7 @@ impl BaseLayer {
     pub(crate) fn from_env() -> Result<Self, Error> {
         Ok(Self {
             port: env_value("PORT")?,
-            environment: env_value("ENVIRONMENT")?,
+            env: env_value("ENV")?,
             shutdown_timeout: env_value("SHUTDOWN_TIMEOUT")?,
             name: env_value("SERVICE_NAME")?,
             version: env_value("SERVICE_VERSION")?,
@@ -36,7 +36,9 @@ impl BaseLayer {
     pub(crate) fn defaults(name: &str, version: &str) -> Self {
         Self {
             port: Some(8080),
-            environment: Some("development".to_string()),
+            // `env` has no string default: the environment type's `Default`
+            // value applies when no layer provides one (see `merge_env`).
+            env: None,
             shutdown_timeout: Some(30),
             name: Some(name.to_string()),
             version: Some(version.to_string()),
@@ -45,20 +47,24 @@ impl BaseLayer {
 }
 
 /// The merged base fields.
-pub(crate) struct Base {
+pub(crate) struct Base<E> {
     pub port: u16,
-    pub environment: String,
+    pub env: E,
+    /// The resolved environment name, kept for the type-agnostic
+    /// [`crate::BaseConfig`] view.
+    pub env_name: String,
     pub shutdown_timeout: Duration,
     pub name: String,
     pub version: String,
 }
 
-pub(crate) fn merge(
+pub(crate) fn merge<E: Environment>(
     env: BaseLayer,
     file: BaseLayer,
     defaults: BaseLayer,
     sources: &mut Vec<FieldSource>,
-) -> Result<Base, Error> {
+) -> Result<Base<E>, Error> {
+    let (environment, env_name) = merge_env::<E>(env.env, file.env, sources)?;
     Ok(Base {
         port: merge_required(
             env.port,
@@ -70,16 +76,8 @@ pub(crate) fn merge(
             false,
             sources,
         )?,
-        environment: merge_required(
-            env.environment,
-            file.environment,
-            defaults.environment,
-            "",
-            "environment",
-            Some("ENVIRONMENT"),
-            false,
-            sources,
-        )?,
+        env: environment,
+        env_name,
         shutdown_timeout: Duration::from_secs(merge_required(
             env.shutdown_timeout,
             file.shutdown_timeout,
@@ -113,8 +111,41 @@ pub(crate) fn merge(
     })
 }
 
+/// Resolves the `env` field: `ENV` over the file over the environment
+/// type's `Default`, parsing the name into `E` and recording provenance.
+fn merge_env<E: Environment>(
+    env: Option<String>,
+    file: Option<String>,
+    sources: &mut Vec<FieldSource>,
+) -> Result<(E, String), Error> {
+    let (value, name, source) = match (env, file) {
+        (Some(raw), _) => {
+            let value = raw.parse::<E>().map_err(|e| Error::InvalidEnv {
+                var: "ENV",
+                message: e.to_string(),
+            })?;
+            (value, raw, Source::Env("ENV"))
+        }
+        (None, Some(raw)) => {
+            let value = raw.parse::<E>()?;
+            (value, raw, Source::File)
+        }
+        (None, None) => {
+            let value = E::default();
+            let name = value.to_string();
+            (value, name, Source::Default)
+        }
+    };
+    sources.push(FieldSource {
+        path: "env".to_string(),
+        value: format!("{value:?}"),
+        source,
+    });
+    Ok((value, name))
+}
+
 /// Schema properties for the base fields.
-pub(crate) fn properties() -> Vec<Property> {
+pub(crate) fn properties<E: Environment>() -> Vec<Property> {
     vec![
         Property {
             name: "port",
@@ -125,14 +156,12 @@ pub(crate) fn properties() -> Vec<Property> {
             node: Node::Integer,
         },
         Property {
-            name: "environment",
-            description: Some(
-                "Deployment environment name, e.g. \"development\" or \"production\".",
-            ),
+            name: "env",
+            description: Some("Deployment environment."),
             required: false,
-            default: Some("development".into()),
-            env: Some("ENVIRONMENT"),
-            node: Node::String,
+            default: Some(E::default().to_string().into()),
+            env: Some("ENV"),
+            node: Node::Enum(E::variants()),
         },
         Property {
             name: "shutdown_timeout",
