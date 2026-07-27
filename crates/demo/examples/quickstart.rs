@@ -24,7 +24,8 @@ use tinkr_framework::Server;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load .env + configuration (env vars > config.toml > defaults) and set
-    // up RUST_LOG-filtered logging. Call exactly once.
+    // up RUST_LOG-filtered logging. Call exactly once. The base fields alone
+    // suffice here: `env` defaults to `local` (config::Env).
     tinkr_framework::init!()?;
 
     // `/health` is built in; nothing to register for it. serve() listens on

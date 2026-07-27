@@ -24,9 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // The deployment environment is typed: `ENV` (or the `env` key) parses
     // into `config::Env` — `local` (the default), `development`, or
-    // `production`; anything else fails `init!`. Services with more
-    // environments derive `config::Environment` on their own enum and
-    // select it with `#[config(env = MyEnv)]` on the config struct.
+    // `production`; anything else fails `init!`. Services with a different
+    // set of environments prescribe their own enum: see
+    // `examples/custom_env.rs`.
     if cfg.env == config::Env::Production {
         tracing::warn!("this demo is not meant to run in production");
     }

@@ -98,6 +98,9 @@ cargo run -p demo --example kitchen_sink
 # Layered configuration: config.toml, env overrides, provenance, schema
 cargo run -p demo --example config    # run from crates/demo
 
+# A consumer-prescribed deployment-environment enum
+ENV=staging cargo run -p demo --example custom_env
+
 # Verify both protocols share one port
 cargo test -p demo
 ```
