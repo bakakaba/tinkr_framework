@@ -28,16 +28,17 @@ where
         || env::var("K_SERVICE").is_ok() // Cloud Run service
         || env::var("CLOUD_RUN_JOB").is_ok(); // Cloud Run job
 
+    #[cfg(feature = "otel")]
+    let otel_layers = crate::otel::init(tinkr_config::base())?;
+
     let registry = tracing_subscriber::registry().with(filter);
+    #[cfg(feature = "otel")]
+    let registry = registry.with(otel_layers);
 
     if !is_deployed {
         registry.with(fmt::layer()).init();
     } else {
-        #[cfg(feature = "gcp")]
-        registry.with(tracing_stackdriver::layer()).init();
-
-        #[cfg(not(feature = "gcp"))]
-        registry.with(fmt::layer().json()).init();
+        registry.with(crate::logging::layer()).init();
     }
 
     tracing::debug!("configuration sources:\n{}", config.sources());

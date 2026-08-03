@@ -1,12 +1,22 @@
-# Run format check and clippy
+compose := `command -v podman >/dev/null 2>&1 && echo "podman compose" || echo "docker compose"`
+
+# Start the local observability stack (Grafana at http://localhost:3000)
+up:
+    {{compose}} up -d
+
+# Stop the local observability stack (storage is ephemeral: this resets it)
+down:
+    {{compose}} down
+
+# Run format check and clippy, exactly as CI does (warnings fail)
 lint:
-    cargo fmt --check
-    cargo clippy
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets -- -D warnings
 
 # Auto-fix formatting and clippy warnings
 fix:
-    cargo fmt
-    cargo clippy --fix
+    cargo fmt --all
+    cargo clippy --fix --workspace --all-targets
 
 # Run all tests
 test:

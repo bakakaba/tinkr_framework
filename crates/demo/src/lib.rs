@@ -11,6 +11,8 @@
 //!   shutdown hook, serve targets, ...).
 //! - `examples/config.rs` — layered configuration: `config.toml`, env
 //!   overrides, provenance readout, and global access.
+//! - `examples/otel.rs` — REST + gRPC telemetry flowing to the local LGTM
+//!   stack (`just up`).
 //! - `examples/gen_schema.rs` — regenerates `config.schema.json` for editor
 //!   intellisense on `config.toml`.
 

@@ -71,6 +71,20 @@ fn provided_fields_resolve() {
     assert_eq!(config.port, 8080);
     assert_eq!(config.env, tinkr_config::Env::Local);
     assert_eq!(config.shutdown_timeout, std::time::Duration::from_secs(30));
+    assert_eq!(config.otel_endpoint, None); // unset unless configured
+}
+
+#[test]
+fn otel_endpoint_resolves_from_file() {
+    let toml = r#"
+        url = "u"
+        otel_endpoint = "http://collector:4317"
+    "#;
+    let config = tinkr_config::parse::<TestConfig>("svc", "1.2.3", Some(toml)).unwrap();
+    assert_eq!(
+        config.otel_endpoint.as_deref(),
+        Some("http://collector:4317")
+    );
 }
 
 #[test]
@@ -168,6 +182,22 @@ fn reserved_field_rejected() {
     assert!(matches!(
         err,
         tinkr_config::Error::ReservedField { name: "port" }
+    ));
+
+    /// Collides with the otel endpoint field.
+    #[derive(Debug, Configurable)]
+    #[allow(dead_code)] // only the error path is exercised
+    struct CollidingOtel {
+        /// Uses a provided field's name.
+        otel_endpoint: Option<String>,
+    }
+
+    let err = tinkr_config::parse::<CollidingOtel>("svc", "1.2.3", None).unwrap_err();
+    assert!(matches!(
+        err,
+        tinkr_config::Error::ReservedField {
+            name: "otel_endpoint"
+        }
     ));
 }
 

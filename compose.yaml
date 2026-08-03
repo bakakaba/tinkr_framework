@@ -1,0 +1,14 @@
+# Local observability stack for development: Grafana's all-in-one LGTM
+# image (OpenTelemetry Collector + Tempo traces + Loki logs + Prometheus
+# metrics + provisioned Grafana). Start with `just up`, stop with
+# `just down`; storage is ephemeral, so `down` resets the stack.
+#
+# The demo's config.toml points telemetry at the collector
+# (http://localhost:4317); Grafana is at http://localhost:3000.
+services:
+  lgtm:
+    image: docker.io/grafana/otel-lgtm:0.30.0
+    ports:
+      - "3000:3000" # Grafana (anonymous admin access)
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP

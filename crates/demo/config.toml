@@ -22,6 +22,15 @@ port = 8081
 # Service version. Defaults to the Cargo package version. (env: SERVICE_VERSION)
 #version = ""
 
+# OTLP gRPC endpoint telemetry is exported to, e.g. http://localhost:4317
+# (an OpenTelemetry Collector). Telemetry export is disabled when unset.
+# (env: OTEL_EXPORTER_OTLP_ENDPOINT)
+#
+# Points at the local LGTM stack (`just up`, Grafana at
+# http://localhost:3000); export fails quietly in the background when the
+# stack isn't running.
+otel_endpoint = "http://localhost:4317"
+
 # Greeting returned by `GET /greeting`. (env: GREETING)
 greeting = "Hello from config.toml!"
 

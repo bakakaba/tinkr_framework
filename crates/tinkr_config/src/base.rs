@@ -3,14 +3,21 @@
 
 use std::time::Duration;
 
-use crate::__private::{env_value, merge_required};
+use crate::__private::{env_value, merge_optional, merge_required};
 use crate::env::Environment;
 use crate::errors::Error;
 use crate::schema::{Node, Property};
 use crate::sources::{FieldSource, Source};
 
 /// Top-level keys claimed by the base fields.
-pub(crate) const RESERVED: [&str; 5] = ["port", "env", "shutdown_timeout", "name", "version"];
+pub(crate) const RESERVED: [&str; 6] = [
+    "port",
+    "env",
+    "shutdown_timeout",
+    "name",
+    "version",
+    "otel_endpoint",
+];
 
 /// One layer's worth of base-field values.
 #[derive(Default, serde::Deserialize)]
@@ -20,6 +27,7 @@ pub(crate) struct BaseLayer {
     shutdown_timeout: Option<u64>,
     name: Option<String>,
     version: Option<String>,
+    otel_endpoint: Option<String>,
 }
 
 impl BaseLayer {
@@ -30,6 +38,7 @@ impl BaseLayer {
             shutdown_timeout: env_value("SHUTDOWN_TIMEOUT")?,
             name: env_value("SERVICE_NAME")?,
             version: env_value("SERVICE_VERSION")?,
+            otel_endpoint: env_value("OTEL_EXPORTER_OTLP_ENDPOINT")?,
         })
     }
 
@@ -42,6 +51,7 @@ impl BaseLayer {
             shutdown_timeout: Some(30),
             name: Some(name.to_string()),
             version: Some(version.to_string()),
+            otel_endpoint: None,
         }
     }
 }
@@ -56,6 +66,7 @@ pub(crate) struct Base<E> {
     pub shutdown_timeout: Duration,
     pub name: String,
     pub version: String,
+    pub otel_endpoint: Option<String>,
 }
 
 pub(crate) fn merge<E: Environment>(
@@ -108,6 +119,16 @@ pub(crate) fn merge<E: Environment>(
             false,
             sources,
         )?,
+        otel_endpoint: merge_optional(
+            env.otel_endpoint,
+            file.otel_endpoint,
+            defaults.otel_endpoint,
+            "",
+            "otel_endpoint",
+            Some("OTEL_EXPORTER_OTLP_ENDPOINT"),
+            false,
+            sources,
+        ),
     })
 }
 
@@ -185,6 +206,18 @@ pub(crate) fn properties<E: Environment>() -> Vec<Property> {
             required: false,
             default: None,
             env: Some("SERVICE_VERSION"),
+            node: Node::String,
+        },
+        Property {
+            name: "otel_endpoint",
+            description: Some(
+                "OTLP gRPC endpoint telemetry is exported to, e.g. \
+                 http://localhost:4317 (an OpenTelemetry Collector). \
+                 Telemetry export is disabled when unset.",
+            ),
+            required: false,
+            default: None,
+            env: Some("OTEL_EXPORTER_OTLP_ENDPOINT"),
             node: Node::String,
         },
     ]

@@ -29,6 +29,13 @@ pub enum Error {
     /// The configuration failed to load; see [`crate::config`].
     #[error(transparent)]
     Config(#[from] tinkr_config::Error),
+
+    /// Building the OpenTelemetry exporters failed, typically because the
+    /// configured OTLP endpoint is not a valid URL.
+    #[cfg(feature = "otel")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "otel")))]
+    #[error("telemetry setup failed: {0}")]
+    Otel(String),
 }
 
 /// Convenience alias for results returned by this crate.
