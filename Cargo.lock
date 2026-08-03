@@ -132,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = "demo"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "http-body-util",
  "hyper",
@@ -950,7 +950,7 @@ dependencies = [
 
 [[package]]
 name = "tinkr_config"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "dotenvy",
  "serde",
@@ -962,7 +962,7 @@ dependencies = [
 
 [[package]]
 name = "tinkr_config_macros"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "tinkr_framework"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "axum",
  "http",
