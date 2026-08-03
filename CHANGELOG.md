@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.8](https://github.com/bakakaba/tinkr_framework/compare/v0.1.7...v0.1.8) (2026-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* the `gcp` feature is removed; deployed logs always use the new JSON format, which Cloud Logging ingests natively.
+
+### Features
+
+* OpenTelemetry export over OTLP (traces, metrics, logs) ([#16](https://github.com/bakakaba/tinkr_framework/issues/16)) ([7cd20f0](https://github.com/bakakaba/tinkr_framework/commit/7cd20f0759795206174d032362ff02b7e36054cc))
+
 ## [0.1.7](https://github.com/bakakaba/tinkr_framework/compare/v0.1.6...v0.1.7) (2026-07-27)
 
 
