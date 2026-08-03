@@ -113,7 +113,7 @@ async fn traffic(port: u16) {
     loop {
         n += 1;
         let _ = http_get(port, "/hello").await;
-        if n % 5 == 0 {
+        if n.is_multiple_of(5) {
             let _ = http_get(port, "/error").await;
         }
         if let Ok(mut greeter) = GreeterClient::connect(format!("http://127.0.0.1:{port}")).await {
