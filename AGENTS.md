@@ -20,8 +20,15 @@ its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
 - `grpc` (default): gates `tonic`/`tower`/`http` deps and all gRPC server code.
   New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
   `--no-default-features`.
-- `gcp` (non-default): gates `tracing-stackdriver`; `bootstrap::init` picks the log layer
-  per feature + deployment env vars (`KUBERNETES_SERVICE_HOST`, `K_SERVICE`, `CLOUD_RUN_JOB`).
+- `otel` (default): gates the `opentelemetry*`/`tracing-opentelemetry` deps, the OTLP
+  export pipeline (`src/otel.rs`), the request-span middleware, and the `/health` `otel`
+  field (per-signal booleans). Runtime-gated: inert unless an OTLP endpoint resolves (per-signal
+  `OTEL_EXPORTER_OTLP_*_ENDPOINT` > `otel_endpoint` base config field;
+  `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` disables a signal). Must also compile with
+  `--no-default-features --features otel` (otel without grpc).
+- Deployed log output (env vars `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, `CLOUD_RUN_JOB`)
+  is the in-house JSON formatter in `src/logging.rs` (Cloud-Logging-compatible keys +
+  generic `trace_id`/`span_id` correlation); local runs get the pretty fmt layer.
 - docs.rs builds with `all-features` and `--cfg docsrs`; use `#[cfg_attr(docsrs, doc(cfg(...)))]`
   on feature-gated public items.
 

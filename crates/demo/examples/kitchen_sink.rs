@@ -10,6 +10,9 @@
 //!   including consumer-defined statuses
 //! - a graceful-shutdown clean-up hook with `.on_shutdown(...)`
 //! - serving multiple addresses with `.bind(...)`
+//! - custom telemetry: a metric through the OpenTelemetry global meter and
+//!   a child span through `tracing` (exported when an OTLP endpoint is
+//!   configured, e.g. `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`)
 //!
 //! Configuration loading has its own example (`examples/config.rs`); the
 //! shutdown grace period and the default port come from the configuration.
@@ -54,12 +57,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // exactly once, before building any Server.
     let cfg = tinkr_framework::init!()?;
 
+    // Metrics record through the OpenTelemetry global meter (use the
+    // framework's `opentelemetry` re-export) and flow to the configured
+    // OTLP endpoint; without one they cost nothing.
+    let hellos = tinkr_framework::opentelemetry::global::meter("demo")
+        .u64_counter("demo.hello.requests")
+        .build();
+
     // A pre-built Router. Build these anywhere (other modules, other
     // crates) and merge them in whole with `.router(...)`.
     let api = Router::new()
         .route(
             "/api/hello",
-            get(|| async { "hello from the merged router" }),
+            get(move || {
+                let hellos = hellos.clone();
+                async move {
+                    hellos.add(1, &[]);
+                    // Child spans nest under the framework's per-request
+                    // span, sharing its trace.
+                    let _span = tracing::info_span!("compose_greeting").entered();
+                    "hello from the merged router"
+                }
+            }),
         )
         .route("/api/version", get(|| async { "demo 0.0.0" }));
 

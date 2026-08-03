@@ -10,11 +10,16 @@
 //!   "status": "degraded",
 //!   "uptime": "P2DT3H4M5.123S",
 //!   "durationMs": 12,
+//!   "otel": {"traces": true, "metrics": true, "logs": false},
 //!   "checks": [
 //!     {"name": "database", "status": "error", "message": "connection refused", "durationMs": 4}
 //!   ]
 //! }
 //! ```
+//!
+//! `otel` (present with the `otel` feature, the default) reports which
+//! telemetry signals are exporting; all `false` means no OTLP endpoint was
+//! configured at startup (see [`crate::init!`]).
 //!
 //! The HTTP status code is `200` when the overall [`Status`] is ok and `503`
 //! otherwise, so load balancers and orchestrator probes work without body
@@ -176,8 +181,8 @@ impl Health {
 }
 
 /// Render the full `/health` response for a report, stamping in the service
-/// identity given to `Server::new`, the uptime since serve start, and the
-/// wall time the evaluation took.
+/// identity given to `Server::new`, the uptime since serve start, the wall
+/// time the evaluation took, and which telemetry signals are exporting.
 pub(crate) fn response(
     service: &str,
     version: &str,
@@ -195,6 +200,8 @@ pub(crate) fn response(
         uptime: String,
         #[serde(rename = "durationMs", serialize_with = "duration_as_millis")]
         duration: Duration,
+        #[cfg(feature = "otel")]
+        otel: crate::otel::Signals,
         #[serde(skip_serializing_if = "<[Check]>::is_empty")]
         checks: &'a [Check],
     }
@@ -213,6 +220,8 @@ pub(crate) fn response(
             status: &health.status,
             uptime: uptime.to_iso8601(),
             duration,
+            #[cfg(feature = "otel")]
+            otel: crate::otel::signals(),
             checks: &health.checks,
         }),
     )

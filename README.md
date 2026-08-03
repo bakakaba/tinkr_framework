@@ -14,10 +14,10 @@ within the configured grace period — and runs an optional clean-up hook.
 
 ## Features
 
-| Feature | Default | When to enable                                                          |
-| ------- | ------- | ----------------------------------------------------------------------- |
-| `grpc`  | yes     | Serving gRPC via `tonic`. Disable with `default-features = false`.      |
-| `gcp`   | no      | Deploying to Google Cloud — deployed logs use the Cloud Logging format. |
+| Feature | Default | What it provides                                                              |
+| ------- | ------- | ----------------------------------------------------------------------------- |
+| `grpc`  | yes     | Serving gRPC via `tonic`. Disable with `default-features = false`.             |
+| `otel`  | yes     | OpenTelemetry export: traces, metrics, and logs over OTLP, plus request spans. |
 
 HTTP/REST support (via `axum`) is always available.
 
@@ -74,6 +74,34 @@ target and check the file in, guarded by a generate-and-diff CI step (see
 `crates/demo/examples/gen_schema.rs` and the `schema` job step; run
 `just schema` after changing config structs). See
 `crates/demo/examples/config.rs` for the full tour.
+
+## Observability
+
+Logs always go to stdout: human-readable locally, one JSON object per line
+when deployed (detected via `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, or
+`CLOUD_RUN_JOB`). The JSON format is understood natively by Google Cloud
+Logging (`severity`, `logging.googleapis.com/*` fields) and parses cleanly in
+Loki/Elastic/Datadog; when tracing is active each line carries the matching
+trace IDs, so logs correlate with traces without any pipeline configuration.
+
+With the `otel` feature (default), setting `OTEL_EXPORTER_OTLP_ENDPOINT`
+(or `otel_endpoint` in `config.toml`) exports traces, metrics, and logs over
+OTLP/gRPC and wraps every request in a server span that continues the
+incoming W3C `traceparent`. Unset, telemetry export is disabled entirely.
+
+Point the endpoint at an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
+(`http://localhost:4317`) rather than a backend: the collector owns fan-out,
+authentication, and retries.
+
+Per-signal overrides follow the OpenTelemetry conventions:
+`OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_ENDPOINT` routes one signal
+elsewhere, and `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` turns one off.
+On platforms that already collect stdout (Cloud Run, GKE) set
+`OTEL_LOGS_EXPORTER=none` to keep logs single-sourced — stdout lines carry
+the trace IDs regardless.
+
+Buffered telemetry is flushed during graceful shutdown, and `/health`
+reports whether export is active (`"otel": true|false`).
 
 ## Utilities
 

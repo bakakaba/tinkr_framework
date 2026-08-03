@@ -18,8 +18,8 @@ implementation.
    variables read (`RUST_LOG`, `KUBERNETES_SERVICE_HOST`, ...), output
    formats, and panic conditions affect users — document them.
    Exception for naming dependencies: keep a dependency name/link when it is
-   the most precise description of behavior (e.g. `tracing-stackdriver` for
-   the `gcp` log format).
+   the most precise description of behavior (e.g. `tonic` for the `grpc`
+   feature's server types).
 4. **Inputs/outputs only when non-obvious.** The signature documents names
    and types. Add an `# Arguments` section with one bullet per argument only
    when an argument can easily be misunderstood (e.g. accepted forms of

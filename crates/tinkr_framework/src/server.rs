@@ -321,6 +321,10 @@ impl Server {
                         if let Some(hook) = hook {
                             hook.await;
                         }
+                        // Last, so telemetry from the drain and the hook is
+                        // still exported.
+                        #[cfg(feature = "otel")]
+                        crate::otel::shutdown().await;
                         Ok::<_, Error>(())
                     };
                     match tokio::time::timeout(base.shutdown_timeout, drain).await {
@@ -338,6 +342,8 @@ impl Server {
         if let Some(hook) = hook {
             hook.await;
         }
+        #[cfg(feature = "otel")]
+        crate::otel::shutdown().await;
         Ok(())
     }
 
@@ -402,6 +408,13 @@ impl Server {
                 grpc = grpc.add_service(v1).add_service(v1alpha);
             }
             app = app.merge(grpc.into_axum_router());
+        }
+
+        // Layered over the merged router so HTTP and gRPC requests alike get
+        // server spans carrying the incoming W3C trace context.
+        #[cfg(feature = "otel")]
+        if crate::otel::traces_active() {
+            app = app.layer(axum::middleware::from_fn(crate::otel::trace_request));
         }
 
         Ok(app)

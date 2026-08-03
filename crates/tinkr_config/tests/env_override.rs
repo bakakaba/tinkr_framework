@@ -34,12 +34,14 @@ fn env_overrides_file_and_defaults() {
         std::env::set_var("TINKR_TEST_CACHE_TTL", "60");
         std::env::set_var("PORT", "9090");
         std::env::set_var("ENV", "production");
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4317");
     }
 
     let toml = r#"
         workers = 8
         port = 7070
         env = "development"
+        otel_endpoint = "http://file:4317"
     "#;
     let config = tinkr_config::parse::<TestConfig>("svc", "1.0.0", Some(toml)).unwrap();
 
@@ -47,6 +49,7 @@ fn env_overrides_file_and_defaults() {
     assert_eq!(config.cache.ttl, 60); // env beats nested default
     assert_eq!(config.port, 9090); // env beats file for provided fields
     assert_eq!(config.env, tinkr_config::Env::Production); // $ENV beats file
+    assert_eq!(config.otel_endpoint.as_deref(), Some("http://env:4317")); // env beats file
 
     let by_path = |path: &str| {
         config
@@ -60,6 +63,10 @@ fn env_overrides_file_and_defaults() {
     assert_eq!(by_path("cache.ttl"), Source::Env("TINKR_TEST_CACHE_TTL"));
     assert_eq!(by_path("port"), Source::Env("PORT"));
     assert_eq!(by_path("env"), Source::Env("ENV"));
+    assert_eq!(
+        by_path("otel_endpoint"),
+        Source::Env("OTEL_EXPORTER_OTLP_ENDPOINT")
+    );
 
     // An unparseable value reports the variable, not a panic.
     // SAFETY: see above.

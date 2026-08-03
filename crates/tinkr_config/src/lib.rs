@@ -178,6 +178,9 @@ pub struct Config<T: Configurable> {
     /// Service version (`SERVICE_VERSION`, defaults to the Cargo package
     /// version).
     pub version: String,
+    /// OTLP endpoint telemetry is exported to
+    /// (`OTEL_EXPORTER_OTLP_ENDPOINT`; export is disabled when unset).
+    pub otel_endpoint: Option<String>,
     app: T,
     /// The resolved environment name, for the [`BaseConfig`] view.
     env_name: String,
@@ -208,6 +211,7 @@ impl<T: Configurable> Config<T> {
             shutdown_timeout: self.shutdown_timeout,
             name: self.name.clone(),
             version: self.version.clone(),
+            otel_endpoint: self.otel_endpoint.clone(),
         }
     }
 }
@@ -228,6 +232,9 @@ pub struct BaseConfig {
     pub name: String,
     /// Service version.
     pub version: String,
+    /// OTLP endpoint telemetry is exported to (export is disabled when
+    /// unset).
+    pub otel_endpoint: Option<String>,
 }
 
 /// The single loaded configuration for this process.
@@ -409,6 +416,7 @@ pub fn parse<T: Configurable>(
         shutdown_timeout: base.shutdown_timeout,
         name: base.name,
         version: base.version,
+        otel_endpoint: base.otel_endpoint,
         app,
         env_name: base.env_name,
         sources: Sources::new(sources),

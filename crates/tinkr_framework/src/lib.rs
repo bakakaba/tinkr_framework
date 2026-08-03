@@ -5,8 +5,9 @@
 //! # Features
 //!
 //! - `grpc` (default): gRPC support. Without it the server is HTTP-only.
-//! - `gcp`: format deployed logs for Google Cloud Logging
-//!   ([`tracing-stackdriver`](https://docs.rs/tracing-stackdriver)).
+//! - `otel` (default): OpenTelemetry export — traces, metrics, and logs
+//!   over OTLP/gRPC, plus a span for every request. Compiled in by
+//!   default but inert until an endpoint is configured; see [`init!`].
 //!
 //! # gRPC code generation
 //!
@@ -21,6 +22,9 @@
 mod bootstrap;
 pub mod errors;
 pub mod health;
+mod logging;
+#[cfg(feature = "otel")]
+mod otel;
 pub mod server;
 pub mod utilities;
 
@@ -32,8 +36,8 @@ pub use bootstrap::init_with as __init_with;
 #[doc(no_inline)]
 pub use tinkr_config as config;
 
-/// Initializes the service: loads the configuration, sets up logging, and
-/// returns the frozen [`config::Config`].
+/// Initializes the service: loads the configuration, sets up logging and
+/// telemetry, and returns the frozen [`config::Config`].
 ///
 /// `init!(AppConfig)` loads a [`config::Configurable`] struct on top of the
 /// base fields; `init!()` loads only the base fields (as `Config<()>`).
@@ -43,7 +47,33 @@ pub use tinkr_config as config;
 ///
 /// Logging reads `RUST_LOG` (default `info`; `.env` is loaded first) and
 /// picks the log format by deployment detection (`KUBERNETES_SERVICE_HOST`,
-/// `K_SERVICE`, `CLOUD_RUN_JOB`; see the `gcp` feature).
+/// `K_SERVICE`, `CLOUD_RUN_JOB`): human-readable locally, one JSON object
+/// per line when deployed (with trace-correlation fields understood by
+/// Google Cloud Logging and Grafana Loki alike).
+///
+/// # Telemetry (`otel` feature, default)
+///
+/// Traces, metrics, and logs are exported over OTLP when an endpoint is
+/// configured — typically an [OpenTelemetry Collector] at
+/// `http://localhost:4317`, which fans out to backends (Google Cloud,
+/// Grafana, ...) as an operational concern. Without an endpoint, export is
+/// disabled and costs nothing at runtime.
+///
+/// Per signal, the endpoint resolves from
+/// `OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_ENDPOINT` first, then the
+/// `otel_endpoint` base field (`OTEL_EXPORTER_OTLP_ENDPOINT` or
+/// `config.toml`). `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` disables a
+/// signal — e.g. set `OTEL_LOGS_EXPORTER=none` on platforms that already
+/// collect stdout logs (Cloud Run, GKE), which keeps logs single-sourced
+/// while traces and metrics flow through the collector.
+///
+/// When span export is active every [`Server`] request gets a span,
+/// continuing the incoming W3C `traceparent` context, and deployed log
+/// lines carry the matching trace IDs. Metrics record through
+/// `opentelemetry::global::meter`. Buffered telemetry is flushed during
+/// graceful shutdown.
+///
+/// [OpenTelemetry Collector]: https://opentelemetry.io/docs/collector/
 ///
 /// Call exactly once, at the top of `main`. Afterwards the configuration is
 /// readable anywhere with [`config::get`], and [`Server`]s can be built.
@@ -79,3 +109,8 @@ pub use axum::{Router, routing};
 #[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
 #[doc(no_inline)]
 pub use tonic;
+
+#[cfg(feature = "otel")]
+#[cfg_attr(docsrs, doc(cfg(feature = "otel")))]
+#[doc(no_inline)]
+pub use opentelemetry;
