@@ -1,3 +1,13 @@
+compose := `command -v podman >/dev/null 2>&1 && echo "podman compose" || echo "docker compose"`
+
+# Start the local observability stack (Grafana at http://localhost:3000)
+up:
+    {{compose}} up -d
+
+# Stop the local observability stack (storage is ephemeral: this resets it)
+down:
+    {{compose}} down
+
 # Run format check and clippy
 lint:
     cargo fmt --check

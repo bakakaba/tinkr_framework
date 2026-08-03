@@ -129,6 +129,15 @@ cargo run -p demo --example config    # run from crates/demo
 # A consumer-prescribed deployment-environment enum
 ENV=staging cargo run -p demo --example custom_env
 
+# REST + gRPC telemetry flowing to the local LGTM stack
+just up         # start Grafana/Tempo/Loki/Prometheus (http://localhost:3000)
+just dev otel   # self-driving traffic; explore traces, logs, and metrics
+just down       # stop the stack (ephemeral storage: this resets it)
+
 # Verify both protocols share one port
 cargo test -p demo
 ```
+
+The demo's `config.toml` points `otel_endpoint` at the local stack, so every
+example exports telemetry while the stack is running; with it stopped,
+export fails quietly in the background.
