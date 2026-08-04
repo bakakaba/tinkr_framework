@@ -21,7 +21,7 @@ otel = [
 ]
 
 [dependencies]
-tinkr_config = { path = "../tinkr_config", version = "0.1.8" }
+tinkr_config = { path = "../tinkr_config", version = "0.1.9" }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",
