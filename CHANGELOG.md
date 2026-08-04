@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/bakakaba/tinkr_framework/compare/v0.1.8...v0.1.9) (2026-08-04)
+
+
+### Features
+
+* auth headers and TLS/mTLS for OTLP export ([9d7fa8e](https://github.com/bakakaba/tinkr_framework/commit/9d7fa8e408449bb19b2ed25b35ce54ed0a4a6ebb))
+
 ## [0.1.8](https://github.com/bakakaba/tinkr_framework/compare/v0.1.7...v0.1.8) (2026-08-03)
 
 
