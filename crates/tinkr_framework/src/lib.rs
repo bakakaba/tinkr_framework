@@ -67,6 +67,14 @@ pub use tinkr_config as config;
 /// collect stdout logs (Cloud Run, GKE), which keeps logs single-sourced
 /// while traces and metrics flow through the collector.
 ///
+/// Hosted collectors work too: export requests carry the headers from the
+/// `otel_headers` base field (`OTEL_EXPORTER_OTLP_HEADERS` or `config.toml`;
+/// `key=value` pairs separated by commas, typically an API key), and
+/// `https://` endpoints are verified against the system roots. The standard
+/// `OTEL_EXPORTER_OTLP_CERTIFICATE`, `_CLIENT_CERTIFICATE`, and `_CLIENT_KEY`
+/// variables (paths to PEM files, per-signal variants included) swap in a
+/// custom CA or enable mTLS.
+///
 /// When span export is active every [`Server`] request gets a span,
 /// continuing the incoming W3C `traceparent` context, and deployed log
 /// lines carry the matching trace IDs. Metrics record through

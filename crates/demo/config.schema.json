@@ -47,6 +47,10 @@
       "description": "OTLP gRPC endpoint telemetry is exported to, e.g. http://localhost:4317 (an OpenTelemetry Collector). Telemetry export is disabled when unset. (env: OTEL_EXPORTER_OTLP_ENDPOINT)",
       "type": "string"
     },
+    "otel_headers": {
+      "description": "Headers attached to every OTLP export request as key=value pairs separated by commas, e.g. x-api-key=secret (typically authentication for a hosted collector). Prefer the environment variable for secret values. (env: OTEL_EXPORTER_OTLP_HEADERS)",
+      "type": "string"
+    },
     "port": {
       "default": 8080,
       "description": "TCP port the server listens on. (env: PORT)",

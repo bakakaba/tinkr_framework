@@ -10,13 +10,14 @@ use crate::schema::{Node, Property};
 use crate::sources::{FieldSource, Source};
 
 /// Top-level keys claimed by the base fields.
-pub(crate) const RESERVED: [&str; 6] = [
+pub(crate) const RESERVED: [&str; 7] = [
     "port",
     "env",
     "shutdown_timeout",
     "name",
     "version",
     "otel_endpoint",
+    "otel_headers",
 ];
 
 /// One layer's worth of base-field values.
@@ -28,6 +29,7 @@ pub(crate) struct BaseLayer {
     name: Option<String>,
     version: Option<String>,
     otel_endpoint: Option<String>,
+    otel_headers: Option<String>,
 }
 
 impl BaseLayer {
@@ -39,6 +41,7 @@ impl BaseLayer {
             name: env_value("SERVICE_NAME")?,
             version: env_value("SERVICE_VERSION")?,
             otel_endpoint: env_value("OTEL_EXPORTER_OTLP_ENDPOINT")?,
+            otel_headers: env_value("OTEL_EXPORTER_OTLP_HEADERS")?,
         })
     }
 
@@ -52,6 +55,7 @@ impl BaseLayer {
             name: Some(name.to_string()),
             version: Some(version.to_string()),
             otel_endpoint: None,
+            otel_headers: None,
         }
     }
 }
@@ -67,6 +71,7 @@ pub(crate) struct Base<E> {
     pub name: String,
     pub version: String,
     pub otel_endpoint: Option<String>,
+    pub otel_headers: Option<String>,
 }
 
 pub(crate) fn merge<E: Environment>(
@@ -127,6 +132,16 @@ pub(crate) fn merge<E: Environment>(
             "otel_endpoint",
             Some("OTEL_EXPORTER_OTLP_ENDPOINT"),
             false,
+            sources,
+        ),
+        otel_headers: merge_optional(
+            env.otel_headers,
+            file.otel_headers,
+            defaults.otel_headers,
+            "",
+            "otel_headers",
+            Some("OTEL_EXPORTER_OTLP_HEADERS"),
+            true,
             sources,
         ),
     })
@@ -218,6 +233,20 @@ pub(crate) fn properties<E: Environment>() -> Vec<Property> {
             required: false,
             default: None,
             env: Some("OTEL_EXPORTER_OTLP_ENDPOINT"),
+            node: Node::String,
+        },
+        Property {
+            name: "otel_headers",
+            description: Some(
+                "Headers attached to every OTLP export request as \
+                 key=value pairs separated by commas, e.g. \
+                 x-api-key=secret (typically authentication for a \
+                 hosted collector). Prefer the environment variable \
+                 for secret values.",
+            ),
+            required: false,
+            default: None,
+            env: Some("OTEL_EXPORTER_OTLP_HEADERS"),
             node: Node::String,
         },
     ]

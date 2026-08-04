@@ -181,6 +181,9 @@ pub struct Config<T: Configurable> {
     /// OTLP endpoint telemetry is exported to
     /// (`OTEL_EXPORTER_OTLP_ENDPOINT`; export is disabled when unset).
     pub otel_endpoint: Option<String>,
+    /// Headers attached to every OTLP export request, as `key=value`
+    /// pairs separated by commas (`OTEL_EXPORTER_OTLP_HEADERS`).
+    pub otel_headers: Option<String>,
     app: T,
     /// The resolved environment name, for the [`BaseConfig`] view.
     env_name: String,
@@ -212,6 +215,7 @@ impl<T: Configurable> Config<T> {
             name: self.name.clone(),
             version: self.version.clone(),
             otel_endpoint: self.otel_endpoint.clone(),
+            otel_headers: self.otel_headers.clone(),
         }
     }
 }
@@ -235,6 +239,9 @@ pub struct BaseConfig {
     /// OTLP endpoint telemetry is exported to (export is disabled when
     /// unset).
     pub otel_endpoint: Option<String>,
+    /// Headers attached to every OTLP export request, as `key=value`
+    /// pairs separated by commas.
+    pub otel_headers: Option<String>,
 }
 
 /// The single loaded configuration for this process.
@@ -417,6 +424,7 @@ pub fn parse<T: Configurable>(
         name: base.name,
         version: base.version,
         otel_endpoint: base.otel_endpoint,
+        otel_headers: base.otel_headers,
         app,
         env_name: base.env_name,
         sources: Sources::new(sources),

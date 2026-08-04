@@ -35,6 +35,7 @@ fn env_overrides_file_and_defaults() {
         std::env::set_var("PORT", "9090");
         std::env::set_var("ENV", "production");
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4317");
+        std::env::set_var("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=env");
     }
 
     let toml = r#"
@@ -42,6 +43,7 @@ fn env_overrides_file_and_defaults() {
         port = 7070
         env = "development"
         otel_endpoint = "http://file:4317"
+        otel_headers = "x-api-key=file"
     "#;
     let config = tinkr_config::parse::<TestConfig>("svc", "1.0.0", Some(toml)).unwrap();
 
@@ -50,6 +52,7 @@ fn env_overrides_file_and_defaults() {
     assert_eq!(config.port, 9090); // env beats file for provided fields
     assert_eq!(config.env, tinkr_config::Env::Production); // $ENV beats file
     assert_eq!(config.otel_endpoint.as_deref(), Some("http://env:4317")); // env beats file
+    assert_eq!(config.otel_headers.as_deref(), Some("x-api-key=env")); // env beats file
 
     let by_path = |path: &str| {
         config
@@ -66,6 +69,10 @@ fn env_overrides_file_and_defaults() {
     assert_eq!(
         by_path("otel_endpoint"),
         Source::Env("OTEL_EXPORTER_OTLP_ENDPOINT")
+    );
+    assert_eq!(
+        by_path("otel_headers"),
+        Source::Env("OTEL_EXPORTER_OTLP_HEADERS")
     );
 
     // An unparseable value reports the variable, not a panic.

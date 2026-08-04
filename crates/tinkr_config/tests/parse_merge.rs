@@ -79,12 +79,18 @@ fn otel_endpoint_resolves_from_file() {
     let toml = r#"
         url = "u"
         otel_endpoint = "http://collector:4317"
+        otel_headers = "x-api-key=hunter2"
     "#;
     let config = tinkr_config::parse::<TestConfig>("svc", "1.2.3", Some(toml)).unwrap();
     assert_eq!(
         config.otel_endpoint.as_deref(),
         Some("http://collector:4317")
     );
+    assert_eq!(config.otel_headers.as_deref(), Some("x-api-key=hunter2"));
+
+    // Headers carry credentials; the provenance readout redacts them.
+    let readout = config.sources().to_string();
+    assert!(!readout.contains("hunter2"), "secret leaked:\n{readout}");
 }
 
 #[test]

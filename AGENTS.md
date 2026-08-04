@@ -17,15 +17,19 @@ its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
 
 ## Features (crates/tinkr_framework)
 
-- `grpc` (default): gates `tonic`/`tower`/`http` deps and all gRPC server code.
-  New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
-  `--no-default-features`.
+- `grpc` (default): gates `tonic`/`tower`/`tonic-reflection` deps and all gRPC server
+  code. New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
+  `--no-default-features`. (`http` is enabled by both `grpc` and `otel`.)
 - `otel` (default): gates the `opentelemetry*`/`tracing-opentelemetry` deps, the OTLP
   export pipeline (`src/otel.rs`), the request-span middleware, and the `/health` `otel`
   field (per-signal booleans). Runtime-gated: inert unless an OTLP endpoint resolves (per-signal
   `OTEL_EXPORTER_OTLP_*_ENDPOINT` > `otel_endpoint` base config field;
-  `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` disables a signal). Must also compile with
-  `--no-default-features --features otel` (otel without grpc).
+  `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` disables a signal). Auth headers come from
+  `otel_headers`/`OTEL_EXPORTER_OTLP_{,SIGNAL_}HEADERS`; `https://` endpoints use rustls
+  (system roots; the spec's `CERTIFICATE`/`CLIENT_CERTIFICATE`/`CLIENT_KEY` PEM-path env
+  vars override — implemented in `src/otel.rs`, not upstream). `src/otel.rs` must not
+  depend on `tonic` directly (use the `opentelemetry_otlp::tonic_types` re-exports): the
+  crate must also compile with `--no-default-features --features otel` (otel without grpc).
 - Deployed log output (env vars `KUBERNETES_SERVICE_HOST`, `K_SERVICE`, `CLOUD_RUN_JOB`)
   is the in-house JSON formatter in `src/logging.rs` (Cloud-Logging-compatible keys +
   generic `trace_id`/`span_id` correlation); local runs get the pretty fmt layer.

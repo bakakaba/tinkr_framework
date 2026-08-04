@@ -17,6 +17,7 @@ otel = [
     "dep:opentelemetry_sdk",
     "dep:opentelemetry-otlp",
     "dep:opentelemetry-appender-tracing",
+    "dep:http",
 ]
 
 [dependencies]
@@ -55,6 +56,8 @@ opentelemetry-otlp = { workspace = true, optional = true, features = [
     "trace",
     "metrics",
     "logs",
+    "tls-ring",
+    "tls-roots",
 ] }
 opentelemetry-appender-tracing = { workspace = true, optional = true }
 
