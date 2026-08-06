@@ -411,10 +411,18 @@ impl Server {
         }
 
         // Layered over the merged router so HTTP and gRPC requests alike get
-        // server spans carrying the incoming W3C trace context.
+        // server spans carrying the incoming W3C trace context, and request
+        // metrics per the OTel HTTP semantic conventions.
         #[cfg(feature = "otel")]
-        if crate::otel::traces_active() {
-            app = app.layer(axum::middleware::from_fn(crate::otel::trace_request));
+        {
+            if crate::otel::traces_active() {
+                app = app.layer(axum::middleware::from_fn(crate::otel::trace_request));
+            }
+            if crate::otel::metrics::active() {
+                app = app.layer(axum::middleware::from_fn(
+                    crate::otel::metrics::track_request,
+                ));
+            }
         }
 
         Ok(app)

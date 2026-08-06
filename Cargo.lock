@@ -635,6 +635,7 @@ dependencies = [
  "portable-atomic",
  "rand 0.9.5",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1136,6 +1137,7 @@ version = "0.1.9"
 dependencies = [
  "axum",
  "http",
+ "http-body",
  "libc",
  "opentelemetry",
  "opentelemetry-appender-tracing",

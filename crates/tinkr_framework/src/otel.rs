@@ -13,6 +13,14 @@
 //! regardless of endpoints, e.g. to keep logs on stdout where the platform
 //! already collects them (Cloud Run, GKE).
 //!
+//! # Request telemetry
+//!
+//! When span export is active every [`crate::Server`] request gets a server
+//! span continuing the incoming W3C trace context. When metric export is
+//! active every request additionally records the semantic-convention HTTP
+//! server metrics — gRPC requests included, with their real outcome taken
+//! from the response trailers (see [`metrics`]).
+//!
 //! # Authentication and TLS
 //!
 //! Export requests carry the headers from the `otel_headers` base
@@ -33,6 +41,8 @@
 //!   the collector (mTLS); both must be set together
 //!
 //! The certificate variables are ignored for plain `http://` endpoints.
+
+pub(crate) mod metrics;
 
 use std::env;
 use std::sync::OnceLock;
@@ -169,6 +179,10 @@ where
             .with_periodic_exporter(exporter)
             .build();
         global::set_meter_provider(provider.clone());
+        {
+            use opentelemetry::metrics::MeterProvider as _;
+            metrics::init(&provider.meter("tinkr_framework"));
+        }
         providers.meter = Some(provider);
     }
 

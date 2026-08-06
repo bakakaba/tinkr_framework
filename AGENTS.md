@@ -21,8 +21,10 @@ its derive macro, re-exported as `tinkr_framework::config`), and `crates/demo`
   code. New code touching gRPC must be `#[cfg(feature = "grpc")]`-gated and compile with
   `--no-default-features`. (`http` is enabled by both `grpc` and `otel`.)
 - `otel` (default): gates the `opentelemetry*`/`tracing-opentelemetry` deps, the OTLP
-  export pipeline (`src/otel.rs`), the request-span middleware, and the `/health` `otel`
-  field (per-signal booleans). Runtime-gated: inert unless an OTLP endpoint resolves (per-signal
+  export pipeline (`src/otel.rs`), the request-span middleware, the request-metrics
+  middleware (`src/otel/metrics.rs`: semconv `http.server.request.duration` +
+  `http.server.active_requests`, gRPC-aware — `grpc-status` is read from response
+  trailers via a body wrapper), and the `/health` `otel` field (per-signal booleans). Runtime-gated: inert unless an OTLP endpoint resolves (per-signal
   `OTEL_EXPORTER_OTLP_*_ENDPOINT` > `otel_endpoint` base config field;
   `OTEL_{TRACES,METRICS,LOGS}_EXPORTER=none` disables a signal). Auth headers come from
   `otel_headers`/`OTEL_EXPORTER_OTLP_{,SIGNAL_}HEADERS`; `https://` endpoints use rustls

@@ -6,8 +6,9 @@
 //!
 //! - `grpc` (default): gRPC support. Without it the server is HTTP-only.
 //! - `otel` (default): OpenTelemetry export — traces, metrics, and logs
-//!   over OTLP/gRPC, plus a span for every request. Compiled in by
-//!   default but inert until an endpoint is configured; see [`init!`].
+//!   over OTLP/gRPC, plus a span and request metrics for every request.
+//!   Compiled in by default but inert until an endpoint is configured; see
+//!   [`init!`].
 //!
 //! # gRPC code generation
 //!
@@ -77,7 +78,11 @@ pub use tinkr_config as config;
 ///
 /// When span export is active every [`Server`] request gets a span,
 /// continuing the incoming W3C `traceparent` context, and deployed log
-/// lines carry the matching trace IDs. Metrics record through
+/// lines carry the matching trace IDs. When metric export is active every
+/// request records the semantic-convention `http.server.request.duration`
+/// and `http.server.active_requests` metrics — gRPC requests included,
+/// with `rpc.*` attributes and the final `grpc-status` read from the
+/// response trailers. Additional application metrics record through
 /// `opentelemetry::global::meter`. Buffered telemetry is flushed during
 /// graceful shutdown.
 ///
