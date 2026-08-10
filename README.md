@@ -1,6 +1,6 @@
-# tinkr_framework
+# Tinkerer Framework
 
-Rust based framework for building API's.
+Rust based framework for bootstrapping consistent API environments.
 
 `tinkr_framework` provides a [`Server`] for standing up an HTTP server (via
 [`axum`](https://docs.rs/axum)) and a gRPC server (via
