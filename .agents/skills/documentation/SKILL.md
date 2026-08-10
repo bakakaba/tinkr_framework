@@ -31,10 +31,14 @@ implementation.
 6. **`# Panics` section** on any public function that can panic, stating when.
 7. **Examples are welcome — as runnable doctests.** Every example must be
    executed by `cargo test` (never `no_run`, `ignore`, or untested blocks;
-   README included). Convoluted uses should always have one. Flows that can't
-   run in a doctest (e.g. `serve()` blocks on signals) reference
-   `crates/demo/examples/` instead — demonstrate topics with full demos
-   there, not inline pseudo-code.
+   README included). Convoluted uses should always have one. In rustdoc,
+   flows that can't run in a doctest (e.g. `serve()` blocks on signals)
+   reference `crates/demo/examples/` instead — demonstrate topics with full
+   demos there, not inline pseudo-code.
+   **README exception:** README blocks whose flow cannot terminate in a
+   doctest may use `no_run` — hidden `#` guard lines would render literally
+   on GitHub/crates.io. They must still compile via the README doctest
+   harness (`ReadmeDoctests` in `crates/demo/src/lib.rs`).
 8. **Crate root docs stay minimal:** a purpose statement plus a
    `# Features` section. Don't enumerate modules or items — rustdoc lists
    them with their own summaries. Don't announce re-exports in prose; they

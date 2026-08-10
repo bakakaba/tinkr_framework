@@ -18,6 +18,12 @@
 
 use tinkr_framework::tonic::{self, Request, Response, Status};
 
+// Executes the workspace README's Rust code blocks as doctests
+// (`cargo test -p demo --doc`), so the README can't drift from the API.
+#[cfg(doctest)]
+#[doc = include_str!("../../../README.md")]
+struct ReadmeDoctests;
+
 pub mod config;
 
 /// Generated protobuf types (client + server) for the `hello` package.
