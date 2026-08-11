@@ -133,12 +133,6 @@ Set `OTEL_LOGS_EXPORTER=none` on platforms that already collect stdout
   `file_descriptor_set_path` or buf's `file_descriptor_set` option (see
   `crates/demo/buf.gen.yaml`).
 
-## Utilities
-
-`utilities::new_id(prefix)` generates a prefixed
-[ULID](https://github.com/ulid/spec), e.g. `user_01JGWXYZ...`. Always prefix
-persisted identifiers.
-
 ## Demo
 
 The `demo` crate (`crates/demo`, not published) is the complete reference
@@ -162,10 +156,4 @@ ENV=staging cargo run -p demo --example custom_env
 just up         # start Grafana/Tempo/Loki/Prometheus (http://localhost:3000)
 just dev otel   # self-driving traffic; explore traces, logs, and metrics
 just down       # stop the stack (ephemeral storage: this resets it)
-
-# Verify both protocols share one port
-cargo test -p demo
 ```
-
-The demo's `config.toml` points `otel_endpoint` at the local stack; with the
-stack stopped, export fails quietly in the background.
