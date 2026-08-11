@@ -96,8 +96,8 @@ minimal Arguments sections, runnable doctests only.
   network access) and commit the result — CI fails if the generated code drifts. Never edit
   `src/gen/` by hand.
 - Bumping the tonic/prost major version is a breaking change to the framework's public API
-  (re-exports + `Server` bounds): use a `!` conventional commit, bump the plugin pins in
-  `crates/demo/buf.gen.yaml` to the matching releases, and rerun `just gen` in the same PR —
+  (re-exports + `Server` bounds): bump the plugin pins in `crates/demo/buf.gen.yaml` to the
+  matching releases and rerun `just gen` in the same PR —
   CI (generated-code drift check + compile) fails otherwise. Minor/patch bumps need none of
   this; Cargo unifies them.
 - Releases are automated and treat the workspace as one unit: `release-please` (single
@@ -109,4 +109,3 @@ minimal Arguments sections, runnable doctests only.
   Publishing (OIDC; no long-lived token). The root `CHANGELOG.md` is the only changelog;
   each published crate has a `CHANGELOG.md` symlink to it so the content ships in the
   `.crate` package (cargo dereferences symlinks when packaging).
-- Commit messages: conventional commits (`feat:`, `refactor:`, `chore:`).
