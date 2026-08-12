@@ -12,6 +12,14 @@ readme = "README.md"
 license = "MIT"
 repository = "https://github.com/bakakaba/tinkr_framework"
 
+[workspace.lints.clippy]
+# Lint opt-outs must self-report when they become redundant: `#[expect]`
+# triggers `unfulfilled_lint_expectations` once the suppressed lint no longer
+# fires, and every opt-out must carry a `reason`. Generated code is the only
+# place bare `#[allow]` is acceptable (expected at the include site).
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
 [workspace.dependencies]
 # Internal crates that appear in published manifests declare their
 # `{ path, version }` dependency in the consuming crate's Cargo.toml —

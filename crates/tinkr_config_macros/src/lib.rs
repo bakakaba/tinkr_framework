@@ -94,7 +94,12 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         #[doc(hidden)]
         #[derive(::core::default::Default, #base::__private::serde::Deserialize)]
         #[serde(crate = #serde_path)]
-        #[allow(non_camel_case_types)]
+        // Emitted code keeps `#[allow]` (not `#[expect]`): whether the lint
+        // fires depends on the consumer's struct name.
+        #[allow(
+            non_camel_case_types,
+            reason = "the layer struct ident is derived from the user's struct name"
+        )]
         pub struct #layer_ident {
             #(#layer_fields,)*
         }
@@ -233,18 +238,24 @@ fn merge_field(f: &FieldSpec, base: &syn::Path) -> proc_macro2::TokenStream {
     }
     let env = option_tokens(f.env.as_ref().map(|v| quote! { #v }));
     let secret = f.secret;
+    let meta = quote! {
+        #base::__private::FieldMeta {
+            prefix,
+            name: #name,
+            env_var: #env,
+            secret: #secret,
+        }
+    };
     if f.optional {
         quote! {
             #ident: #base::__private::merge_optional(
-                env.#ident, file.#ident, defaults.#ident,
-                prefix, #name, #env, #secret, sources,
+                env.#ident, file.#ident, defaults.#ident, #meta, sources,
             )
         }
     } else {
         quote! {
             #ident: #base::__private::merge_required(
-                env.#ident, file.#ident, defaults.#ident,
-                prefix, #name, #env, #secret, sources,
+                env.#ident, file.#ident, defaults.#ident, #meta, sources,
             )?
         }
     }

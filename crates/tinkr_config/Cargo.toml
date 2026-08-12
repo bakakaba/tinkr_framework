@@ -8,6 +8,9 @@ license.workspace = true
 repository.workspace = true
 documentation = "https://docs.rs/tinkr_config"
 
+[lints]
+workspace = true
+
 [dependencies]
 tinkr_config_macros = { path = "../tinkr_config_macros", version = "0.1.10" }
 serde = { workspace = true, features = ["derive"] }

@@ -122,14 +122,14 @@ fn missing_required_value_errors() {
 fn nested_missing_value_reports_dotted_path() {
     /// Wrapper.
     #[derive(Debug, Configurable)]
-    #[allow(dead_code)] // only the error path is exercised
+    #[expect(dead_code, reason = "only the error path is exercised")]
     struct Outer {
         #[config(nested)]
         inner: Inner,
     }
     /// Inner.
     #[derive(Debug, Configurable)]
-    #[allow(dead_code)] // only the error path is exercised
+    #[expect(dead_code, reason = "only the error path is exercised")]
     struct Inner {
         /// Required.
         key: String,
@@ -177,7 +177,7 @@ fn provenance_tracks_winning_layer() {
 fn reserved_field_rejected() {
     /// Colliding configuration.
     #[derive(Debug, Configurable)]
-    #[allow(dead_code)] // only the error path is exercised
+    #[expect(dead_code, reason = "only the error path is exercised")]
     struct Colliding {
         /// Uses a provided field's name.
         #[config(default = 1)]
@@ -192,7 +192,7 @@ fn reserved_field_rejected() {
 
     /// Collides with the otel endpoint field.
     #[derive(Debug, Configurable)]
-    #[allow(dead_code)] // only the error path is exercised
+    #[expect(dead_code, reason = "only the error path is exercised")]
     struct CollidingOtel {
         /// Uses a provided field's name.
         otel_endpoint: Option<String>,

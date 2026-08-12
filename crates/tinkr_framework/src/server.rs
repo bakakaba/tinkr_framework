@@ -84,9 +84,10 @@ impl Server {
     ///
     /// Panics when the configuration is not loaded — call [`crate::init!`]
     /// first.
-    // Not `Default`: construction requires the loaded configuration, and a
-    // panicking `default()` would be misleading.
-    #[allow(clippy::new_without_default)]
+    #[expect(
+        clippy::new_without_default,
+        reason = "construction requires the loaded configuration; a panicking `default()` would be misleading"
+    )]
     pub fn new() -> Self {
         let base = tinkr_config::base();
         Self {

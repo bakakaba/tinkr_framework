@@ -7,7 +7,7 @@ use tinkr_config::Configurable;
 
 /// Test configuration.
 #[derive(Debug, Configurable)]
-#[allow(dead_code)] // only the double-load panic is exercised
+#[expect(dead_code, reason = "only the double-load panic is exercised")]
 struct TestConfig {
     /// Greeting text.
     #[config(default = "hello")]

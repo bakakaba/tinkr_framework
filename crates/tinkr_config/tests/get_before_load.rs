@@ -7,7 +7,7 @@ use tinkr_config::Configurable;
 
 /// Test configuration.
 #[derive(Debug, Configurable)]
-#[allow(dead_code)] // never constructed; get() panics first
+#[expect(dead_code, reason = "never constructed; get() panics first")]
 struct TestConfig {
     /// Greeting text.
     #[config(default = "hello")]

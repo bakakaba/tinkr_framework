@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Use when writing or reviewing doc comments (rustdoc `///`, `//!`), README content, or API documentation in this repository. Defines the house style: purpose over implementation, minimal Arguments sections, self-documenting errors, runnable examples only.
+description: "Use when writing or reviewing doc comments (rustdoc `///`, `//!`), README content, or API documentation in this repository. Defines the house style: purpose over implementation, minimal Arguments sections, self-documenting errors, runnable examples only."
 ---
 
 # Documentation Style

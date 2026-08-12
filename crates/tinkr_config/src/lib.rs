@@ -1,4 +1,4 @@
-//! Layered, attribute-driven configuration for services.
+//! Layered, attribute-driven configuration.
 //!
 //! Derive [`Configurable`] on a struct describing your settings, then load it
 //! once at startup with [`load!`]. Values are resolved per field, highest
@@ -22,13 +22,6 @@
 //!     #[config(env = "TINKR_DOC_WORKERS", default = 4)]
 //!     workers: usize,
 //! }
-//!
-//! // `parse` is the test-friendly variant of `load!`: same layering, but no
-//! // global state or file system access.
-//! let config = tinkr_config::parse::<AppConfig>("demo", "1.0.0", Some("workers = 8"))?;
-//! assert_eq!(config.workers, 8);   // application field, from the TOML document
-//! assert_eq!(config.port, 8080);   // base field, from its default
-//! # Ok::<(), tinkr_config::Error>(())
 //! ```
 
 use std::any::Any;

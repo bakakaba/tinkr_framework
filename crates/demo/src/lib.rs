@@ -27,6 +27,11 @@ struct ReadmeDoctests;
 pub mod config;
 
 /// Generated protobuf types (client + server) for the `hello` package.
+#[expect(
+    clippy::allow_attributes,
+    clippy::allow_attributes_without_reason,
+    reason = "generated code (buf) uses bare #[allow]"
+)]
 pub mod pb {
     include!("gen/hello/hello.rs");
 }

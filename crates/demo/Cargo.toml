@@ -4,6 +4,9 @@ edition.workspace = true
 version.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 tinkr_framework = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }

@@ -6,7 +6,7 @@ use tinkr_config::Configurable;
 ///
 /// Second line of the description.
 #[derive(Debug, Configurable)]
-#[allow(dead_code)] // only the schema output is exercised
+#[expect(dead_code, reason = "only the schema output is exercised")]
 struct TestConfig {
     /// Connection URL.
     #[config(env = "TINKR_SCHEMA_URL", secret)]
@@ -30,7 +30,7 @@ struct TestConfig {
 
 /// Cache settings.
 #[derive(Debug, Configurable)]
-#[allow(dead_code)] // only the schema output is exercised
+#[expect(dead_code, reason = "only the schema output is exercised")]
 struct Cache {
     /// Entry time-to-live, in seconds.
     #[config(default = 300)]
@@ -86,7 +86,7 @@ fn schema_describes_provided_and_app_fields() {
 fn required_lists_file_only_fields() {
     /// Requires a value with no env override.
     #[derive(Debug, Configurable)]
-    #[allow(dead_code)] // only the schema output is exercised
+    #[expect(dead_code, reason = "only the schema output is exercised")]
     struct Strict {
         /// Must come from the file.
         key: String,

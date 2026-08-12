@@ -75,6 +75,15 @@ minimal Arguments sections, runnable doctests only.
   from the loaded config via `config::base()` — there is deliberately no builder
   method or argument to override them; `bind()` (repeatable) is the only serve-target
   knob, and calling it replaces the implicit dual-stack `{port}` bind.
+- Lint opt-outs: prefer restructuring the code so no opt-out is needed. When one is
+  genuinely required, hand-written code uses `#[expect(lint, reason = "...")]` — never
+  bare `#[allow]` — so a redundant opt-out fails CI via `unfulfilled_lint_expectations`
+  and the justification lives in the attribute. Enforced by `[workspace.lints]` in the
+  root Cargo.toml (`clippy::allow_attributes`, `clippy::allow_attributes_without_reason`)
+  plus the existing `-D warnings`. Exceptions: generated code (`src/gen/`, expected at the
+  `pub mod pb` include site in the demo) and macro-emitted code (`quote!` blocks, where
+  whether the lint fires depends on consumer input) keep `#[allow]`, with a `reason`
+  where hand-written.
 - Tests that set the global tracing subscriber, mutate environment variables, load the
   global configuration, or change the working directory go in their own integration-test
   file (own process), e.g. `tests/bootstrap_double_init.rs`, `tests/config_load.rs`.

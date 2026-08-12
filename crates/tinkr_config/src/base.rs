@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use crate::__private::{env_value, merge_optional, merge_required};
+use crate::__private::{FieldMeta, env_value, merge_optional, merge_required};
 use crate::env::Environment;
 use crate::errors::Error;
 use crate::schema::{Node, Property};
@@ -86,10 +86,7 @@ pub(crate) fn merge<E: Environment>(
             env.port,
             file.port,
             defaults.port,
-            "",
-            "port",
-            Some("PORT"),
-            false,
+            base_meta("port", "PORT", false),
             sources,
         )?,
         env: environment,
@@ -98,53 +95,48 @@ pub(crate) fn merge<E: Environment>(
             env.shutdown_timeout,
             file.shutdown_timeout,
             defaults.shutdown_timeout,
-            "",
-            "shutdown_timeout",
-            Some("SHUTDOWN_TIMEOUT"),
-            false,
+            base_meta("shutdown_timeout", "SHUTDOWN_TIMEOUT", false),
             sources,
         )?),
         name: merge_required(
             env.name,
             file.name,
             defaults.name,
-            "",
-            "name",
-            Some("SERVICE_NAME"),
-            false,
+            base_meta("name", "SERVICE_NAME", false),
             sources,
         )?,
         version: merge_required(
             env.version,
             file.version,
             defaults.version,
-            "",
-            "version",
-            Some("SERVICE_VERSION"),
-            false,
+            base_meta("version", "SERVICE_VERSION", false),
             sources,
         )?,
         otel_endpoint: merge_optional(
             env.otel_endpoint,
             file.otel_endpoint,
             defaults.otel_endpoint,
-            "",
-            "otel_endpoint",
-            Some("OTEL_EXPORTER_OTLP_ENDPOINT"),
-            false,
+            base_meta("otel_endpoint", "OTEL_EXPORTER_OTLP_ENDPOINT", false),
             sources,
         ),
         otel_headers: merge_optional(
             env.otel_headers,
             file.otel_headers,
             defaults.otel_headers,
-            "",
-            "otel_headers",
-            Some("OTEL_EXPORTER_OTLP_HEADERS"),
-            true,
+            base_meta("otel_headers", "OTEL_EXPORTER_OTLP_HEADERS", true),
             sources,
         ),
     })
+}
+
+/// Builds the [`FieldMeta`] for a top-level provided field.
+fn base_meta(name: &'static str, env_var: &'static str, secret: bool) -> FieldMeta<'static> {
+    FieldMeta {
+        prefix: "",
+        name,
+        env_var: Some(env_var),
+        secret,
+    }
 }
 
 /// Resolves the `env` field: `ENV` over the file over the environment
