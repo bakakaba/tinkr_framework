@@ -12,7 +12,7 @@ documentation = "https://docs.rs/tinkr_config"
 workspace = true
 
 [dependencies]
-tinkr_config_macros = { path = "../tinkr_config_macros", version = "0.1.10" }
+tinkr_config_macros = { path = "../tinkr_config_macros", version = "0.1.11" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 toml = { workspace = true }
