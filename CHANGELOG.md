@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/bakakaba/tinkr_framework/compare/v0.1.10...v0.1.11) (2026-08-13)
+
+
+### Features
+
+* **config:** support explicit and $CONFIG_FILE config file paths ([61980dd](https://github.com/bakakaba/tinkr_framework/commit/61980dd4386fd7492ee8cebeb251d1ab24045a47))
+
 ## [0.1.10](https://github.com/bakakaba/tinkr_framework/compare/v0.1.9...v0.1.10) (2026-08-06)
 
 
