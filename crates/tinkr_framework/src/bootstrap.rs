@@ -1,6 +1,7 @@
 //! Bootstraps common resources used when running a service.
 
 use std::env;
+use std::path::Path;
 
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -10,14 +11,18 @@ use crate::errors::Result;
 /// Implementation of [`crate::init!`]; call the macro instead, which fills
 /// in `name` and `version` from the calling crate's Cargo package.
 #[doc(hidden)]
-pub fn init_with<T>(name: &str, version: &str) -> Result<&'static tinkr_config::Config<T>>
+pub fn init_with<T>(
+    name: &str,
+    version: &str,
+    config_file: Option<&Path>,
+) -> Result<&'static tinkr_config::Config<T>>
 where
     T: tinkr_config::Configurable + Send + Sync + 'static,
 {
     // Load the configuration first: it loads .env, so RUST_LOG set there is
     // picked up by the filter below. Errors are returned before logging is
     // available.
-    let config = tinkr_config::load_with::<T>(name, version)?;
+    let config = tinkr_config::load_with::<T>(name, version, config_file)?;
 
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())

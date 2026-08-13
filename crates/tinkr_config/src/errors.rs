@@ -26,16 +26,18 @@ pub enum Error {
 
     /// The configuration file is not valid TOML, or a value in it has the
     /// wrong type.
-    #[error("invalid config.toml: {0}")]
+    #[error("invalid {}: {}", crate::config_path(), .0)]
     File(#[from] toml::de::Error),
 
-    /// The configuration file exists but could not be read.
-    #[error("failed to read config.toml: {0}")]
+    /// The configuration file could not be read: an explicitly specified
+    /// file (`config_file = ...` or `$CONFIG_FILE`) is missing, or any file
+    /// exists but is unreadable.
+    #[error("failed to read {}: {}", crate::config_path(), .0)]
     Io(#[from] std::io::Error),
 
     /// The configuration file's `env` value is not a variant of the
     /// configured [`Environment`](crate::Environment) type.
-    #[error("invalid `env` in config.toml: {0}")]
+    #[error("invalid `env` in {}: {}", crate::config_path(), .0)]
     UnknownEnvironment(#[from] crate::UnknownEnvironment),
 
     /// An application field uses a name reserved by the base
@@ -50,7 +52,7 @@ pub enum Error {
 
 fn missing_hint(env: &Option<&'static str>) -> String {
     match env {
-        Some(var) => format!("set ${var} or add it to {}", crate::CONFIG_FILE),
-        None => format!("add it to {}", crate::CONFIG_FILE),
+        Some(var) => format!("set ${var} or add it to {}", crate::config_path()),
+        None => format!("add it to {}", crate::config_path()),
     }
 }

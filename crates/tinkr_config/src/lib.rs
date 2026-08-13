@@ -5,7 +5,8 @@
 //! precedence first:
 //!
 //! 1. environment variables (declared per field with `#[config(env = "...")]`)
-//! 2. `config.toml` in the working directory
+//! 2. the configuration file — the path passed as `config_file = ...`, else
+//!    the path in `$CONFIG_FILE`, else `config.toml` in the working directory
 //! 3. `#[config(default = ...)]` values
 //!
 //! The loaded configuration is frozen and globally accessible through
@@ -26,7 +27,8 @@
 
 use std::any::Any;
 use std::ops::Deref;
-use std::sync::OnceLock;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 mod base;
@@ -44,9 +46,79 @@ pub use errors::Error;
 pub use sources::{FieldSource, Source, Sources};
 pub use tinkr_config_macros::{Configurable, Environment};
 
-/// The configuration file read by [`load!`], relative to the working
-/// directory.
+/// The default configuration file read by [`load!`], relative to the working
+/// directory, when no other path is specified.
 pub const CONFIG_FILE: &str = "config.toml";
+
+/// The environment variable naming the configuration file to load.
+///
+/// Lets a single build read per-environment configuration from wherever the
+/// deployment mounts it (e.g. `CONFIG_FILE=/etc/config/config.toml` on a
+/// Cloud Run volume). Ignored when a path is passed explicitly with
+/// `config_file = ...`.
+pub const CONFIG_FILE_VAR: &str = "CONFIG_FILE";
+
+/// The configuration file path resolved by [`load_with`], for display in
+/// provenance and error messages. `None` until a load is attempted (e.g.
+/// when only [`parse`] is used), in which case [`CONFIG_FILE`] is shown.
+static CONFIG_PATH: Mutex<Option<String>> = Mutex::new(None);
+
+/// The configuration file path to display in provenance and error messages.
+pub(crate) fn config_path() -> String {
+    CONFIG_PATH
+        .lock()
+        .expect("config path lock poisoned")
+        .clone()
+        .unwrap_or_else(|| CONFIG_FILE.to_string())
+}
+
+/// A `config_file = ...` argument: a path, or an `Option` of one decided at
+/// runtime.
+///
+/// Accepted by [`load!`] (and `tinkr_framework::init!`). Passing a path —
+/// or `Some(path)` — takes full control of the file location: the
+/// [`CONFIG_FILE_VAR`] environment variable is ignored and a missing file
+/// is an error. Passing `None` preserves the default resolution.
+pub trait IntoConfigFile {
+    /// The explicit configuration file path, when one is supplied.
+    fn into_config_file(self) -> Option<PathBuf>;
+}
+
+impl IntoConfigFile for &str {
+    fn into_config_file(self) -> Option<PathBuf> {
+        Some(PathBuf::from(self))
+    }
+}
+
+impl IntoConfigFile for String {
+    fn into_config_file(self) -> Option<PathBuf> {
+        Some(PathBuf::from(self))
+    }
+}
+
+impl IntoConfigFile for &Path {
+    fn into_config_file(self) -> Option<PathBuf> {
+        Some(self.to_path_buf())
+    }
+}
+
+impl IntoConfigFile for PathBuf {
+    fn into_config_file(self) -> Option<PathBuf> {
+        Some(self)
+    }
+}
+
+impl IntoConfigFile for &PathBuf {
+    fn into_config_file(self) -> Option<PathBuf> {
+        Some(self.clone())
+    }
+}
+
+impl<T: IntoConfigFile> IntoConfigFile for Option<T> {
+    fn into_config_file(self) -> Option<PathBuf> {
+        self.and_then(IntoConfigFile::into_config_file)
+    }
+}
 
 /// A configuration shape that can be loaded from layered sources.
 ///
@@ -250,12 +322,21 @@ struct Stored {
 
 /// Loads the configuration and freezes it for the lifetime of the process.
 ///
-/// `load!(AppConfig)` resolves every field from the environment,
-/// [`CONFIG_FILE`], and declared defaults, stores the result globally, and
-/// returns `Result<&'static Config<AppConfig>, Error>`. Call it once during
-/// startup; afterwards any part of the program can read the configuration
-/// with [`get`]. (When using `tinkr_framework`, its `init!` macro does this
-/// for you.)
+/// `load!(AppConfig)` resolves every field from the environment, the
+/// configuration file, and declared defaults, stores the result globally,
+/// and returns `Result<&'static Config<AppConfig>, Error>`. Call it once
+/// during startup; afterwards any part of the program can read the
+/// configuration with [`get`]. (When using `tinkr_framework`, its `init!`
+/// macro does this for you.)
+///
+/// The configuration file is the path in the [`CONFIG_FILE_VAR`]
+/// environment variable when set (a missing file is then an error),
+/// otherwise [`CONFIG_FILE`] in the working directory (which may be
+/// absent). `load!(AppConfig, config_file = path)` takes full control of
+/// the location instead: exactly that file is loaded, [`CONFIG_FILE_VAR`]
+/// is ignored, and a missing file is an error. The parameter accepts any
+/// [`IntoConfigFile`] value, so an `Option` decided at runtime works too —
+/// `None` preserves the default resolution.
 ///
 /// The base `name` and `version` fields default to the calling
 /// crate's Cargo package name and version.
@@ -269,6 +350,14 @@ macro_rules! load {
         $crate::load_with::<$ty>(
             ::core::env!("CARGO_PKG_NAME"),
             ::core::env!("CARGO_PKG_VERSION"),
+            ::core::option::Option::None,
+        )
+    };
+    ($ty:ty, config_file = $path:expr) => {
+        $crate::load_with::<$ty>(
+            ::core::env!("CARGO_PKG_NAME"),
+            ::core::env!("CARGO_PKG_VERSION"),
+            $crate::IntoConfigFile::into_config_file($path).as_deref(),
         )
     };
 }
@@ -276,12 +365,18 @@ macro_rules! load {
 /// Non-macro form of [`load!`] taking explicit `name`/`version` defaults.
 ///
 /// Prefer [`load!`], which fills these in from the calling crate's Cargo
-/// package.
+/// package. `config_file` corresponds to the macro's `config_file = ...`
+/// parameter: `Some(path)` loads exactly that file, `None` selects the
+/// default resolution ([`CONFIG_FILE_VAR`], then [`CONFIG_FILE`]).
 ///
 /// # Panics
 ///
 /// Panics when a configuration was already loaded.
-pub fn load_with<T>(name: &str, version: &str) -> Result<&'static Config<T>, Error>
+pub fn load_with<T>(
+    name: &str,
+    version: &str,
+    config_file: Option<&Path>,
+) -> Result<&'static Config<T>, Error>
 where
     T: Configurable + Send + Sync + 'static,
 {
@@ -293,9 +388,20 @@ where
         panic!("configuration already loaded: load the configuration exactly once at startup");
     }
 
-    let file = match std::fs::read_to_string(CONFIG_FILE) {
+    // An explicitly specified file (argument or $CONFIG_FILE) must exist;
+    // only the default config.toml may be absent.
+    let (path, explicit) = match config_file {
+        Some(path) => (path.to_path_buf(), true),
+        None => match std::env::var_os(CONFIG_FILE_VAR) {
+            Some(path) => (PathBuf::from(path), true),
+            None => (PathBuf::from(CONFIG_FILE), false),
+        },
+    };
+    *CONFIG_PATH.lock().expect("config path lock poisoned") = Some(path.display().to_string());
+
+    let file = match std::fs::read_to_string(&path) {
         Ok(text) => Some(text),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) if !explicit && e.kind() == std::io::ErrorKind::NotFound => None,
         Err(e) => return Err(e.into()),
     };
     let config = parse::<T>(name, version, file.as_deref())?;
@@ -368,8 +474,8 @@ pub fn base() -> &'static BaseConfig {
 }
 
 /// Resolves a configuration without touching the global slot or the file
-/// system: the same layering as [`load!`], with `file` standing in for
-/// `config.toml`.
+/// system: the same layering as [`load!`], with `file` standing in for the
+/// configuration file's contents.
 ///
 /// Useful in tests and tooling. Environment variables still apply.
 pub fn parse<T: Configurable>(

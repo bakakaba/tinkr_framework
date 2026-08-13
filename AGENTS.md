@@ -88,7 +88,10 @@ minimal Arguments sections, runnable doctests only.
   global configuration, or change the working directory go in their own integration-test
   file (own process), e.g. `tests/bootstrap_double_init.rs`, `tests/config_load.rs`.
 - Configuration (`tinkr_config`): consumers derive `Configurable`; precedence is env var >
-  `config.toml` (CWD) > `#[config(default)]`. `load!`/`get` are the global path (frozen,
+  config file > `#[config(default)]`. The file is resolved from the `config_file = ...`
+  parameter of `load!`/`init!` (full control; `$CONFIG_FILE` ignored), else `$CONFIG_FILE`,
+  else `config.toml` (CWD); explicitly named files must exist, only the default may be
+  absent. `load!`/`get` are the global path (frozen,
   panic on double-load/unloaded-get, matching `init`); `parse` is the test/tooling seam.
   Top-level keys `port`, `env`, `shutdown_timeout`, `name`, `version` are reserved
   for the provided fields. The `env` field is typed: `tinkr_config::Env` by default,

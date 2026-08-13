@@ -43,8 +43,29 @@ pub use tinkr_config as config;
 /// `init!(AppConfig)` loads a [`config::Configurable`] struct on top of the
 /// base fields; `init!()` loads only the base fields (as `Config<()>`).
 /// Values resolve per field, highest precedence first: environment variables,
-/// `config.toml` in the working directory, declared defaults. The base
-/// `name` and `version` fields default to the calling crate's Cargo package.
+/// the configuration file, declared defaults. The base `name` and `version`
+/// fields default to the calling crate's Cargo package.
+///
+/// The configuration file is the path in the `CONFIG_FILE` environment
+/// variable when set — letting one build read per-environment configuration
+/// from wherever the deployment mounts it — otherwise `config.toml` in the
+/// working directory. An explicitly named file must exist; the default
+/// `config.toml` may be absent. The optional `config_file = ...` parameter
+/// takes full control of the location instead: exactly that file is loaded
+/// and `$CONFIG_FILE` is ignored (value overrides via other environment
+/// variables still apply). It accepts a path or an `Option` of one
+/// ([`config::IntoConfigFile`]), so the decision can be made at runtime —
+/// `None` preserves the default resolution:
+///
+/// ```no_run
+/// # /// Empty.
+/// # #[derive(Debug, tinkr_framework::config::Configurable)]
+/// # struct AppConfig {}
+/// # fn stub() -> tinkr_framework::errors::Result<()> {
+/// let config = tinkr_framework::init!(AppConfig, config_file = "/etc/config/config.toml")?;
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// Logging reads `RUST_LOG` (default `info`; `.env` is loaded first) and
 /// picks the log format by deployment detection (`KUBERNETES_SERVICE_HOST`,
@@ -105,10 +126,21 @@ macro_rules! init {
     () => {
         $crate::init!(())
     };
+    (config_file = $path:expr) => {
+        $crate::init!((), config_file = $path)
+    };
     ($ty:ty) => {
         $crate::__init_with::<$ty>(
             ::core::env!("CARGO_PKG_NAME"),
             ::core::env!("CARGO_PKG_VERSION"),
+            ::core::option::Option::None,
+        )
+    };
+    ($ty:ty, config_file = $path:expr) => {
+        $crate::__init_with::<$ty>(
+            ::core::env!("CARGO_PKG_NAME"),
+            ::core::env!("CARGO_PKG_VERSION"),
+            $crate::config::IntoConfigFile::into_config_file($path).as_deref(),
         )
     };
 }

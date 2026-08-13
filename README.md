@@ -86,8 +86,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Each field resolves independently:
 
 ```text
-env var  ──unset──►  config.toml (CWD)  ──missing──►  #[config(default)]
+env var  ──unset──►  config file  ──missing──►  #[config(default)]
 ```
+
+The config file is `config.toml` in the working directory by default. Deployments
+point one build at per-environment configuration by mounting it wherever they like
+and setting `CONFIG_FILE=/etc/config/config.toml`; applications take full control
+instead with `init!(AppConfig, config_file = path)` (a path or a runtime
+`Option` — `None` keeps the default resolution). An explicitly named file must
+exist; only the default `config.toml` may be absent.
 
 - Provide your config struct to `tinkr_framework::init!(AppConfig)`; read it
   anywhere with `config::get::<AppConfig>()`.

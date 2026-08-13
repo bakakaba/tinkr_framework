@@ -21,7 +21,7 @@ impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Source::Default => write!(f, "default"),
-            Source::File => write!(f, "{}", crate::CONFIG_FILE),
+            Source::File => write!(f, "{}", crate::config_path()),
             Source::Env(var) => write!(f, "${var}"),
             Source::Unset => write!(f, "unset"),
         }
